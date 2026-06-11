@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import YAML from 'yaml';
 import {
@@ -46,9 +47,8 @@ export interface ControlDeps {
   remote?: RemoteClient;
 }
 
-export interface ToolText {
+export interface ToolText extends CallToolResult {
   content: { type: 'text'; text: string }[];
-  isError?: boolean;
 }
 
 const text = (t: string): ToolText => ({ content: [{ type: 'text', text: t }] });

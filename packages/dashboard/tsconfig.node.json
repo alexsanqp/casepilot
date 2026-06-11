@@ -10,7 +10,10 @@
     "isolatedModules": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+    "paths": {
+      "vite": ["./node_modules/vite/dist/node/index.d.ts"]
+    }
   },
   "include": ["vite.config.ts"]
 }

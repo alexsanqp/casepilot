@@ -42,9 +42,12 @@ function errorMessage(err: unknown): string {
 export function registerApiRoutes(app: FastifyInstance, deps: ApiDeps): void {
   const { workspace } = deps;
 
-  app.setErrorHandler((err, _req, reply) => {
-    const statusCode = typeof err.statusCode === 'number' && err.statusCode >= 400 ? err.statusCode : 500;
-    void reply.status(statusCode).send({ error: err.message });
+  app.setErrorHandler((err: unknown, _req, reply) => {
+    const statusCode =
+      err instanceof Error && 'statusCode' in err && typeof err.statusCode === 'number' && err.statusCode >= 400
+        ? err.statusCode
+        : 500;
+    void reply.status(statusCode).send({ error: errorMessage(err) });
   });
 
   app.get('/api/health', async () => ({ ok: true, version: deps.version }));

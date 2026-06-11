@@ -7,7 +7,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspaces --if-present",
+    "build": "npm run build -w @casepilot/core && npm run build -w @casepilot/providers && npm run build -w @casepilot/mcp && npm run build -w @casepilot/server && npm run build -w @casepilot/cli && npm run build -w @casepilot/dashboard",
     "test": "npm run test --workspaces --if-present"
   }
 }

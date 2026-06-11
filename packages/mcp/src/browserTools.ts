@@ -2,6 +2,7 @@ import path from 'node:path';
 import { writeFile } from 'node:fs/promises';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { BrowserSession, loadCaseFile, saveReplayFile } from '@casepilot/core';
 import type { ActStep, AssertStep, RunResult } from '@casepilot/core';
@@ -16,9 +17,8 @@ export interface BrowserToolsOptions {
   baseUrl?: string;
 }
 
-interface ToolText {
+interface ToolText extends CallToolResult {
   content: { type: 'text'; text: string }[];
-  isError?: boolean;
 }
 
 const text = (t: string): ToolText => ({ content: [{ type: 'text', text: t }] });
