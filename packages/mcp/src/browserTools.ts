@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { writeFile } from 'node:fs/promises';
+import { rm, writeFile } from 'node:fs/promises';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
@@ -36,7 +36,21 @@ export async function runBrowserTools(options: BrowserToolsOptions): Promise<voi
     artifactsDir: options.artifactsDir,
     baseUrl: options.baseUrl,
   });
-  await session.goto(caseSpec.url);
+  try {
+    await session.goto(caseSpec.url);
+  } catch (err) {
+    // Startup failed before any tool call: close the browser and drop the
+    // unfinalized video stub instead of leaving an orphaned 0-byte .webm.
+    try {
+      await session.close();
+    } catch {
+      // browser may already be gone
+    }
+    if (options.video) {
+      await rm(path.join(options.artifactsDir, 'video'), { recursive: true, force: true });
+    }
+    throw err;
+  }
 
   const state = createRecordingState();
   let finalized = false;
@@ -175,7 +189,12 @@ export async function runBrowserTools(options: BrowserToolsOptions): Promise<voi
     },
   );
 
-  server.server.onclose = () => {
+  let shuttingDown = false;
+  const shutdown = (): void => {
+    // 'end', 'close', and transport onclose can all fire; only the first one
+    // may run the cleanup, and nobody may exit while session.close() is mid-flight.
+    if (shuttingDown) return;
+    shuttingDown = true;
     void (async () => {
       if (!finalized) {
         finalized = true;
@@ -188,6 +207,13 @@ export async function runBrowserTools(options: BrowserToolsOptions): Promise<voi
       process.exit(0);
     })();
   };
+
+  server.server.onclose = shutdown;
+  // The stdio transport does not reliably surface client disconnects; without
+  // this the bridge (and its chromium) outlives the agent CLI and recorded
+  // videos never finalize.
+  process.stdin.once('end', shutdown);
+  process.stdin.once('close', shutdown);
 
   await server.connect(new StdioServerTransport());
 }

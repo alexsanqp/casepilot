@@ -38,6 +38,12 @@ export function createClaudeCodeProvider(opts: ClaudeCodeProviderOptions): Agent
           '--verbose',
           '--mcp-config',
           mcpConfigPath,
+          // Isolate the headless session from the user's global setup: their MCP
+          // servers and hooks otherwise run inside the recording session and can
+          // poison the exit code (e.g. a failing SessionEnd hook).
+          '--strict-mcp-config',
+          '--settings',
+          '{"disableAllHooks":true}',
           '--allowedTools',
           'mcp__casepilot__*',
           '--max-turns',

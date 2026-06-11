@@ -12,6 +12,8 @@ export interface RunCliOptions {
   timeoutMs?: number;
   /** Prefix for error messages, e.g. `claude-code provider "cc"`. */
   label: string;
+  /** Written to the child's stdin, which is then closed. Default: stdin is ignored. */
+  stdin?: string;
 }
 
 export interface RunCliResult {
@@ -20,7 +22,12 @@ export interface RunCliResult {
 
 export function runCli(opts: RunCliOptions): Promise<RunCliResult> {
   const timeoutMs = opts.timeoutMs ?? AGENT_TIMEOUT_MS;
-  const target = buildSpawnTarget(opts.command, opts.args);
+  let target: SpawnTarget;
+  try {
+    target = buildSpawnTarget(opts.command, opts.args);
+  } catch (err) {
+    return Promise.reject(err instanceof Error ? new Error(`${opts.label}: ${err.message}`) : err);
+  }
 
   return new Promise<RunCliResult>((resolve, reject) => {
     const child = spawn(target.file, target.args, {
@@ -28,8 +35,15 @@ export function runCli(opts: RunCliOptions): Promise<RunCliResult> {
       shell: false,
       windowsHide: true,
       windowsVerbatimArguments: target.verbatim,
-      stdio: ['ignore', 'pipe', 'pipe'],
+      stdio: [opts.stdin === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'],
     });
+
+    if (opts.stdin !== undefined && child.stdin) {
+      child.stdin.on('error', () => {
+        // EPIPE when the CLI exits before reading stdin; the close handler reports it.
+      });
+      child.stdin.end(opts.stdin);
+    }
 
     let stdout = '';
     let stderr = '';
@@ -70,11 +84,16 @@ export function runCli(opts: RunCliOptions): Promise<RunCliResult> {
         if (code === 0) {
           resolve({ stdout });
         } else {
+          // Agent CLIs (e.g. claude -p --output-format stream-json) report fatal
+          // errors on stdout, so fall back to its tail when stderr is silent.
+          const detail =
+            excerpt(stderr) ||
+            (stdout.trim() ? `(stdout tail) ${excerpt(stdout.trim().slice(-2000))}` : '(no output)');
           reject(
             new Error(
-              `${opts.label}: "${opts.command}" exited with ${code === null ? `signal ${signal}` : `code ${code}`}: ${
-                excerpt(stderr) || '(no stderr output)'
-              }`,
+              `${opts.label}: "${opts.command}" exited with ${
+                code === null ? `signal ${signal}` : `code ${code}`
+              }: ${detail}`,
             ),
           );
         }
@@ -95,7 +114,19 @@ function buildSpawnTarget(command: string, args: string[]): SpawnTarget {
   if (/\.(cmd|bat)$/i.test(resolved)) {
     // Node refuses to spawn .cmd/.bat with shell:false (CVE-2024-27980), so route
     // through cmd.exe with explicit MSVCRT + cmd metacharacter escaping.
-    const line = [resolved, ...args].map((part) => escapeCmdMeta(quoteWindowsArg(part))).join(' ');
+    const newlineArg = args.find((arg) => /[\r\n]/.test(arg));
+    if (newlineArg !== undefined) {
+      // cmd.exe treats a newline as end-of-command; there is no safe escape.
+      throw new Error(
+        `Cannot pass an argument containing newlines through the .cmd shim "${resolved}". ` +
+          'Pass the payload via stdin instead, or point the provider "command" at the underlying executable.',
+      );
+    }
+    // The command token must NOT be wrapped in caret-escaped quotes: caret-escaping
+    // disables cmd quote parsing, so a quoted "C:\Program Files\..." path would be
+    // split at the first space. Caret-escape its spaces/metachars instead, and keep
+    // quote-then-escape for the arguments.
+    const line = [escapeCmdCommand(resolved), ...args.map((arg) => escapeCmdMeta(quoteWindowsArg(arg)))].join(' ');
     return {
       file: process.env['ComSpec'] ?? 'cmd.exe',
       args: ['/d', '/s', '/c', `"${line}"`],
@@ -131,6 +162,11 @@ function quoteWindowsArg(arg: string): string {
 
 function escapeCmdMeta(part: string): string {
   return part.replace(/[()%!^"<>&|]/g, '^$&');
+}
+
+/** Caret-escape a bare command path for cmd.exe, including spaces (cross-spawn style). */
+function escapeCmdCommand(commandPath: string): string {
+  return commandPath.replace(/[()%!^"<>&|;, ]/g, '^$&');
 }
 
 function killTree(child: ChildProcess): void {

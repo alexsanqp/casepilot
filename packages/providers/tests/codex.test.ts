@@ -15,13 +15,15 @@ describe('createCodexProvider', () => {
       extraArgs: [fakeCli],
     });
 
-    const { transcript } = await provider.runTask({ taskPrompt: 'Run the save case', mcp });
-    const echoed = JSON.parse(transcript.trim()) as { args: string[] };
+    const { transcript } = await provider.runTask({ taskPrompt: 'Run the save case\nwith two lines', mcp });
+    const echoed = JSON.parse(transcript.trim()) as { args: string[]; stdin: string };
 
     expect(echoed.args[0]).toBe('exec');
-    expect(echoed.args[1]).toBe('Run the save case');
+    expect(echoed.args[1]).toBe('-');
+    expect(echoed.stdin).toBe('Run the save case\nwith two lines');
     expect(echoed.args).toContain('--json');
     expect(echoed.args).toContain('--skip-git-repo-check');
+    expect(echoed.args).toContain('--ignore-user-config');
     expect(echoed.args).toContain('mcp_servers.casepilot.command="node-mcp"');
     expect(echoed.args).toContain('mcp_servers.casepilot.args=["serve","--port","0"]');
     const firstC = echoed.args.indexOf('-c');

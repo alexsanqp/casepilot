@@ -20,9 +20,14 @@ export function createCodexProvider(opts: CodexProviderOptions): AgentProvider {
       const args = [
         ...extraArgs,
         'exec',
-        taskPrompt,
+        // The multiline prompt goes over stdin ('-'): on Windows the npm `codex`
+        // shim is a .cmd routed through cmd.exe, which cannot carry newlines in argv.
+        '-',
         '--json',
         '--skip-git-repo-check',
+        // Isolate from ~/.codex/config.toml: user-level MCP gateways with stale
+        // auth otherwise abort the session at startup (auth.json is still used).
+        '--ignore-user-config',
         // -c values are parsed as TOML; JSON string/array literals are valid TOML
         // and keep Windows backslash paths intact.
         '-c',
@@ -31,7 +36,7 @@ export function createCodexProvider(opts: CodexProviderOptions): AgentProvider {
         `mcp_servers.casepilot.args=${JSON.stringify(mcp.args)}`,
       ];
       if (model) args.push('--model', model);
-      const { stdout } = await runCli({ command, args, cwd, label });
+      const { stdout } = await runCli({ command, args, cwd, label, stdin: taskPrompt });
       return { transcript: stdout };
     },
   };

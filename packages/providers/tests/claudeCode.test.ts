@@ -29,6 +29,8 @@ describe('createClaudeCodeProvider', () => {
     expect(echoed.args).toContain('--output-format');
     expect(echoed.args).toContain('stream-json');
     expect(echoed.args).toContain('--verbose');
+    expect(echoed.args).toContain('--strict-mcp-config');
+    expect(echoed.args[echoed.args.indexOf('--settings') + 1]).toBe('{"disableAllHooks":true}');
     expect(echoed.args).toContain('--allowedTools');
     expect(echoed.args[echoed.args.indexOf('--allowedTools') + 1]).toBe('mcp__casepilot__*');
     expect(echoed.args[echoed.args.indexOf('--max-turns') + 1]).toBe('40');
@@ -41,6 +43,18 @@ describe('createClaudeCodeProvider', () => {
     const tmpPath = echoed.args[echoed.args.indexOf('--mcp-config') + 1];
     expect(tmpPath).toBeTruthy();
     expect(existsSync(tmpPath as string)).toBe(false);
+  });
+
+  it('rejects with the stdout tail when the CLI fails with silent stderr', async () => {
+    const provider = createClaudeCodeProvider({
+      id: 'cc',
+      command: process.execPath,
+      extraArgs: [fileURLToPath(new URL('./fixtures/fake-cli-fail-stdout.mjs', import.meta.url))],
+    });
+
+    await expect(provider.runTask({ taskPrompt: 'whatever', mcp })).rejects.toThrow(
+      /code 1.*stdout tail.*Failed to authenticate/s,
+    );
   });
 
   it('rejects with stderr excerpt on non-zero exit and still cleans up the tmpfile', async () => {
