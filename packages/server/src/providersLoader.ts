@@ -20,7 +20,8 @@ interface ProvidersModule {
   };
 }
 
-export const CONFIG_FILE_NAME = 'casepilot.config.yaml';
+import { CONFIG_FILE_NAME } from './scaffold.js';
+export { CONFIG_FILE_NAME } from './scaffold.js';
 
 export async function loadWorkspaceRegistry(workspace: string): Promise<ProviderRegistryLike> {
   const mod = (await import('@casepilot/providers')) as unknown as ProvidersModule;

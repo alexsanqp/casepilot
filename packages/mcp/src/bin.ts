@@ -3,16 +3,19 @@ import { runBrowserTools } from './browserTools.js';
 import { runControl } from './control.js';
 
 const BOOL_FLAGS = new Set(['--video', '--headed']);
-const VALUE_FLAGS = new Set(['--case', '--artifacts', '--base-url', '--workspace', '--server']);
+const VALUE_FLAGS = new Set(['--case', '--artifacts', '--base-url', '--workspace', '--server', '--registry', '--project']);
 
 const USAGE = `Usage:
   casepilot-mcp browser-tools --case <path.case.yaml> --artifacts <dir> [--video] [--headed] [--base-url <url>]
   casepilot-mcp control --workspace <dir> [--server <url>]
+  casepilot-mcp control --registry <projects.json> [--project <id>] [--server <url>]
 
 browser-tools  stdio MCP bridge that lets an agent provider drive a real browser
                and record a casepilot replay. Finishes via the report_result tool.
 control        stdio MCP server for external AI agents (e.g. Claude Code) to
                operate a casepilot workspace: list/get/upsert/run/export cases.
+               With --registry it resolves the workspace from the project
+               registry (--project picks the project) and adds a list_projects tool.
 `;
 
 function parseFlags(argv: string[]): Map<string, string | boolean> {
@@ -66,9 +69,16 @@ async function main(): Promise<void> {
     }
     case 'control': {
       const flags = parseFlags(rest);
+      const workspace = optionalString(flags, '--workspace');
+      const registryPath = optionalString(flags, '--registry');
+      if (!workspace && !registryPath) {
+        throw new Error('control requires --workspace or --registry');
+      }
       await runControl({
-        workspace: requireString(flags, '--workspace'),
+        workspace,
         serverUrl: optionalString(flags, '--server'),
+        registryPath,
+        projectId: optionalString(flags, '--project'),
       });
       break;
     }

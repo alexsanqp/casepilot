@@ -31,3 +31,24 @@ export {
   type ProviderRegistryLike,
   type ProviderSummary,
 } from './providersLoader.js';
+export {
+  addProject,
+  defaultRegistryPath,
+  getProject,
+  loadProjects,
+  projectSchema,
+  projectsFileSchema,
+  registerProject,
+  removeProject,
+  saveProjects,
+  slugify,
+  type Project,
+  type ProjectsFile,
+} from './projects.js';
+export { ensureWorkspaceScaffold, scaffoldWorkspace, type ScaffoldOutcome } from './scaffold.js';
+export {
+  ProjectManager,
+  type ProjectContext,
+  type ProjectInfo,
+  type ProjectManagerOptions,
+} from './projectManager.js';

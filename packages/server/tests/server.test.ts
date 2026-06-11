@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import type { AgentProvider, ChatProvider, Provider, ReplayFile, RunResult } from '@casepilot/core';
 import { createServer } from '../src/server.js';
+import { saveProjects } from '../src/projects.js';
 import type { RunEngine } from '../src/runner.js';
 import type { ProviderRegistryLike } from '../src/providersLoader.js';
 
@@ -95,8 +96,10 @@ async function setup(overrides?: {
     ...overrides?.engine,
   };
   const registry = makeRegistry(overrides?.providers ?? [chatProvider], overrides?.defaultId ?? 'fake-chat');
+  const registryPath = path.join(await mkdtemp(path.join(os.tmpdir(), 'cp-reg-')), 'projects.json');
   const app = await createServer({
     workspace,
+    registryPath,
     deps: {
       engine,
       loadRegistry: async () => registry,
@@ -104,7 +107,7 @@ async function setup(overrides?: {
     },
   });
   openApps.push(app);
-  return { workspace, app, engine };
+  return { workspace, app, engine, registryPath };
 }
 
 describe('GET /api/health', () => {
@@ -380,6 +383,7 @@ describe('run lifecycle', () => {
 
     const rebooted = await createServer({
       workspace,
+      registryPath: path.join(await mkdtemp(path.join(os.tmpdir(), 'cp-reg-')), 'projects.json'),
       deps: {
         engine: { recordCase: vi.fn(), replayCase: vi.fn() } as unknown as RunEngine,
         loadRegistry: async () => makeRegistry([chatProvider], 'fake-chat'),
@@ -391,5 +395,178 @@ describe('run lifecycle', () => {
     expect(list.json()).toEqual([
       expect.objectContaining({ runId, case: 'login', status: 'done', verdict: 'passed' }),
     ]);
+  });
+});
+
+describe('multi-project mode', () => {
+  async function setupProjects() {
+    const home = await mkdtemp(path.join(os.tmpdir(), 'cp-home-'));
+    const registryPath = path.join(home, 'projects.json');
+    const dirA = await mkdtemp(path.join(os.tmpdir(), 'cp-proj-a-'));
+    const dirB = await mkdtemp(path.join(os.tmpdir(), 'cp-proj-b-'));
+    await mkdir(path.join(dirA, 'cases'), { recursive: true });
+    await mkdir(path.join(dirB, 'cases'), { recursive: true });
+    await writeFile(path.join(dirA, 'cases', 'login.case.yaml'), CASE_YAML, 'utf8');
+    await writeFile(
+      path.join(dirB, 'cases', 'signup.case.yaml'),
+      CASE_YAML.replace('name: login', 'name: signup'),
+      'utf8',
+    );
+    await saveProjects(registryPath, {
+      version: 1,
+      projects: [
+        { id: 'alpha', name: 'Alpha', path: dirA },
+        { id: 'beta', name: 'Beta', path: dirB },
+      ],
+    });
+    const engine: RunEngine = {
+      recordCase: vi.fn(async () => ({ result: makeResult('record'), replay: makeReplay() })),
+      replayCase: vi.fn(async () => makeResult('replay')),
+    };
+    const app = await createServer({
+      registryPath,
+      deps: {
+        engine,
+        loadRegistry: async () => makeRegistry([chatProvider], 'fake-chat'),
+        resolveMcpBin: () => 'C:/fake/mcp/dist/bin.js',
+      },
+    });
+    openApps.push(app);
+    return { app, registryPath, dirA, dirB, engine };
+  }
+
+  it('lists registered projects with case counts', async () => {
+    const { app, dirA, dirB } = await setupProjects();
+    const res = await app.inject({ method: 'GET', url: '/api/projects' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({
+      projects: [
+        { id: 'alpha', name: 'Alpha', path: dirA, caseCount: 1 },
+        { id: 'beta', name: 'Beta', path: dirB, caseCount: 1 },
+      ],
+    });
+  });
+
+  it('serves project-scoped case routes independently', async () => {
+    const { app } = await setupProjects();
+    const alpha = await app.inject({ method: 'GET', url: '/api/projects/alpha/cases' });
+    const beta = await app.inject({ method: 'GET', url: '/api/projects/beta/cases' });
+    expect(alpha.json()).toEqual([expect.objectContaining({ name: 'login' })]);
+    expect(beta.json()).toEqual([expect.objectContaining({ name: 'signup' })]);
+
+    const single = await app.inject({ method: 'GET', url: '/api/projects/alpha/cases/login' });
+    expect(single.statusCode).toBe(200);
+    expect(single.json().spec.name).toBe('login');
+    expect((await app.inject({ method: 'GET', url: '/api/projects/beta/cases/login' })).statusCode).toBe(404);
+  });
+
+  it('404s scoped routes for an unknown project', async () => {
+    const { app } = await setupProjects();
+    const res = await app.inject({ method: 'GET', url: '/api/projects/ghost/cases' });
+    expect(res.statusCode).toBe(404);
+    expect(res.json().error).toContain('ghost');
+  });
+
+  it('rejects unscoped aliases when no default project exists', async () => {
+    const { app } = await setupProjects();
+    for (const url of ['/api/cases', '/api/runs', '/api/providers']) {
+      const res = await app.inject({ method: 'GET', url });
+      expect(res.statusCode).toBe(404);
+      expect(res.json()).toEqual({ error: 'project-scoped route required' });
+    }
+  });
+
+  it('runs cases per project and keeps run registries separate', async () => {
+    const { app, dirA, engine } = await setupProjects();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/projects/alpha/runs',
+      payload: { case: 'login', mode: 'record' },
+    });
+    expect(res.statusCode).toBe(202);
+    const { runId } = res.json() as { runId: string };
+    const ctx = await app.projectManager.getContext('alpha');
+    await ctx!.service.settled(runId);
+    expect(engine.recordCase).toHaveBeenCalledTimes(1);
+
+    const report = await app.inject({ method: 'GET', url: `/api/projects/alpha/runs/${runId}` });
+    expect(report.json()).toMatchObject({ status: 'done', result: { verdict: 'passed' } });
+    const resultJson = JSON.parse(await readFile(path.join(dirA, 'runs', runId, 'result.json'), 'utf8'));
+    expect(resultJson.verdict).toBe('passed');
+
+    const alphaRuns = await app.inject({ method: 'GET', url: '/api/projects/alpha/runs' });
+    expect(alphaRuns.json()).toEqual([expect.objectContaining({ runId })]);
+    const betaRuns = await app.inject({ method: 'GET', url: '/api/projects/beta/runs' });
+    expect(betaRuns.json()).toEqual([]);
+    expect((await app.inject({ method: 'GET', url: `/api/projects/beta/runs/${runId}` })).statusCode).toBe(404);
+
+    const projects = await app.inject({ method: 'GET', url: '/api/projects' });
+    const alpha = (projects.json().projects as Array<{ id: string; lastRunAt?: string }>).find(
+      (p) => p.id === 'alpha',
+    );
+    expect(alpha?.lastRunAt).toEqual(expect.any(String));
+  });
+
+  it('registers a new project via POST and scaffolds a bare directory', async () => {
+    const { app } = await setupProjects();
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'cp-proj-new-'));
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/projects',
+      payload: { name: 'Fresh One', path: dir },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json()).toEqual({ project: { id: 'fresh-one', name: 'Fresh One', path: dir } });
+    expect(await readFile(path.join(dir, 'casepilot.config.yaml'), 'utf8')).toContain('providers: []');
+
+    const cases = await app.inject({ method: 'GET', url: '/api/projects/fresh-one/cases' });
+    expect(cases.json()).toEqual([expect.objectContaining({ name: 'example' })]);
+  });
+
+  it('400s when registering an invalid path or body', async () => {
+    const { app } = await setupProjects();
+    const bad = await app.inject({
+      method: 'POST',
+      url: '/api/projects',
+      payload: { name: 'nope', path: path.join(os.tmpdir(), 'cp-definitely-missing-dir') },
+    });
+    expect(bad.statusCode).toBe(400);
+    expect(bad.json().error).toContain('does not exist');
+
+    const malformed = await app.inject({ method: 'POST', url: '/api/projects', payload: { name: 'x' } });
+    expect(malformed.statusCode).toBe(400);
+  });
+
+  it('removes a project from the registry without touching its files', async () => {
+    const { app, dirA } = await setupProjects();
+    const del = await app.inject({ method: 'DELETE', url: '/api/projects/alpha' });
+    expect(del.statusCode).toBe(204);
+    expect(await readFile(path.join(dirA, 'cases', 'login.case.yaml'), 'utf8')).toContain('name: login');
+    expect((await app.inject({ method: 'GET', url: '/api/projects/alpha/cases' })).statusCode).toBe(404);
+    expect((await app.inject({ method: 'DELETE', url: '/api/projects/alpha' })).statusCode).toBe(404);
+    const list = await app.inject({ method: 'GET', url: '/api/projects' });
+    expect(list.json().projects).toEqual([expect.objectContaining({ id: 'beta' })]);
+  });
+});
+
+describe('single-workspace mode projects view', () => {
+  it('exposes the workspace as the implicit "default" project', async () => {
+    const { app, workspace } = await setup();
+    const res = await app.inject({ method: 'GET', url: '/api/projects' });
+    expect(res.json()).toEqual({
+      projects: [{ id: 'default', name: path.basename(workspace), path: workspace, caseCount: 1 }],
+    });
+  });
+
+  it('serves the same workspace via scoped and unscoped routes', async () => {
+    const { app } = await setup({ withReplay: true });
+    const scoped = await app.inject({ method: 'GET', url: '/api/projects/default/cases' });
+    const unscoped = await app.inject({ method: 'GET', url: '/api/cases' });
+    expect(scoped.json()).toEqual(unscoped.json());
+  });
+
+  it('cannot DELETE the implicit default project', async () => {
+    const { app } = await setup();
+    expect((await app.inject({ method: 'DELETE', url: '/api/projects/default' })).statusCode).toBe(404);
   });
 });

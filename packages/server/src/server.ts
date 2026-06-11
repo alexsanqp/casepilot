@@ -1,55 +1,66 @@
 import path from 'node:path';
 import { createRequire } from 'node:module';
-import { mkdir } from 'node:fs/promises';
 import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
 import { defaultRunnerDeps, type RunnerDeps } from './runner.js';
-import { RunRegistry } from './runs.js';
-import { RunService } from './service.js';
+import type { RunRegistry } from './runs.js';
+import type { RunService } from './service.js';
 import { registerApiRoutes } from './routes.js';
-import { casesDir, runsDir } from './workspace.js';
+import { defaultRegistryPath } from './projects.js';
+import { ProjectManager } from './projectManager.js';
+import { runsDir } from './workspace.js';
 
 declare module 'fastify' {
   interface FastifyInstance {
+    /** Default-project service/registry; only decorated in single-workspace mode. */
     runService: RunService;
     runRegistry: RunRegistry;
+    projectManager: ProjectManager;
   }
 }
 
 const pkg = createRequire(import.meta.url)('../package.json') as { version: string };
 
 export interface ServerOptions {
-  workspace: string;
+  /** Single-workspace mode: served as the implicit project "default". */
+  workspace?: string;
   port?: number;
+  /** Project registry file; defaults to %USERPROFILE%/.casepilot/projects.json (or $CASEPILOT_HOME/projects.json). */
+  registryPath?: string;
   deps?: Partial<RunnerDeps>;
 }
 
-export async function createServer(options: ServerOptions): Promise<FastifyInstance> {
-  const workspace = path.resolve(options.workspace);
-  await mkdir(casesDir(workspace), { recursive: true });
-  await mkdir(runsDir(workspace), { recursive: true });
-
+export async function createServer(options: ServerOptions = {}): Promise<FastifyInstance> {
   const deps: RunnerDeps = { ...defaultRunnerDeps(), ...options.deps };
-  const registry = await RunRegistry.open(runsDir(workspace));
-  const service = new RunService(workspace, registry, deps);
+  const manager = new ProjectManager({
+    registryPath: options.registryPath ?? defaultRegistryPath(),
+    defaultWorkspace: options.workspace ? path.resolve(options.workspace) : undefined,
+    deps,
+  });
 
   const app = Fastify({ logger: false });
   await app.register(cors, { origin: true });
-  await app.register(fastifyStatic, {
-    root: runsDir(workspace),
-    prefix: '/artifacts/',
-    decorateReply: false,
-  });
+
+  const defaultContext = manager.hasDefault ? await manager.getContext('default') : undefined;
+  if (defaultContext) {
+    await app.register(fastifyStatic, {
+      root: runsDir(defaultContext.workspace),
+      prefix: '/artifacts/',
+      decorateReply: false,
+    });
+  }
+
   registerApiRoutes(app, {
-    workspace,
     version: pkg.version,
-    registry,
-    service,
+    manager,
     loadRegistry: deps.loadRegistry,
   });
-  app.decorate('runService', service);
-  app.decorate('runRegistry', registry);
+  app.decorate('projectManager', manager);
+  if (defaultContext) {
+    app.decorate('runService', defaultContext.service);
+    app.decorate('runRegistry', defaultContext.registry);
+  }
   return app;
 }
 

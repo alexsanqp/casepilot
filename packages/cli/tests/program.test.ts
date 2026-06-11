@@ -11,6 +11,9 @@ function stubActions(): CliActions {
     report: vi.fn(async () => {}),
     serve: vi.fn(async () => {}),
     mcp: vi.fn(async () => {}),
+    projectsList: vi.fn(async () => {}),
+    projectsAdd: vi.fn(async () => {}),
+    projectsRemove: vi.fn(async () => {}),
   };
 }
 
@@ -113,13 +116,63 @@ describe('casepilot CLI parsing', () => {
   it('parses serve with a numeric port', async () => {
     const actions = stubActions();
     await parse(actions, ['serve', '--port', '8080']);
-    expect(actions.serve).toHaveBeenCalledWith({ workspace: process.cwd(), port: 8080 });
+    expect(actions.serve).toHaveBeenCalledWith({ workspace: undefined, port: 8080, registry: undefined });
   });
 
-  it('defaults serve to port 7700', async () => {
+  it('defaults serve to port 7700 and registry mode without --workspace', async () => {
     const actions = stubActions();
     await parse(actions, ['serve']);
-    expect(actions.serve).toHaveBeenCalledWith({ workspace: process.cwd(), port: 7700 });
+    expect(actions.serve).toHaveBeenCalledWith({ workspace: undefined, port: 7700, registry: undefined });
+  });
+
+  it('parses serve with an explicit --workspace (single-project mode)', async () => {
+    const actions = stubActions();
+    await parse(actions, ['--workspace', 'C:\\tmp\\ws', 'serve']);
+    expect(actions.serve).toHaveBeenCalledWith({ workspace: 'C:\\tmp\\ws', port: 7700, registry: undefined });
+  });
+
+  it('parses serve with --registry', async () => {
+    const actions = stubActions();
+    await parse(actions, ['serve', '--registry', 'C:\\tmp\\projects.json']);
+    expect(actions.serve).toHaveBeenCalledWith({
+      workspace: undefined,
+      port: 7700,
+      registry: 'C:\\tmp\\projects.json',
+    });
+  });
+
+  it('parses projects list', async () => {
+    const actions = stubActions();
+    await parse(actions, ['projects', 'list', '--registry', 'C:\\tmp\\projects.json']);
+    expect(actions.projectsList).toHaveBeenCalledWith({ registry: 'C:\\tmp\\projects.json' });
+  });
+
+  it('parses projects add with name and registry', async () => {
+    const actions = stubActions();
+    await parse(actions, ['projects', 'add', 'C:\\tmp\\proj', '--name', 'My App', '--registry', 'C:\\tmp\\r.json']);
+    expect(actions.projectsAdd).toHaveBeenCalledWith({
+      path: 'C:\\tmp\\proj',
+      name: 'My App',
+      registry: 'C:\\tmp\\r.json',
+    });
+  });
+
+  it('parses projects add without options', async () => {
+    const actions = stubActions();
+    await parse(actions, ['projects', 'add', 'C:\\tmp\\proj']);
+    expect(actions.projectsAdd).toHaveBeenCalledWith({ path: 'C:\\tmp\\proj', name: undefined, registry: undefined });
+  });
+
+  it('parses projects remove', async () => {
+    const actions = stubActions();
+    await parse(actions, ['projects', 'remove', 'demo']);
+    expect(actions.projectsRemove).toHaveBeenCalledWith({ id: 'demo', registry: undefined });
+  });
+
+  it('requires the path argument for projects add', async () => {
+    const actions = stubActions();
+    await expect(parse(actions, ['projects', 'add'])).rejects.toThrow();
+    expect(actions.projectsAdd).not.toHaveBeenCalled();
   });
 
   it('parses mcp', async () => {

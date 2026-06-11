@@ -75,6 +75,50 @@ async function fileExists(p: string): Promise<boolean> {
   }
 }
 
+const projectsFileSchema = z.object({
+  version: z.literal(1),
+  projects: z.array(z.object({ id: z.string(), name: z.string(), path: z.string() })),
+});
+export type ProjectsFile = z.infer<typeof projectsFileSchema>;
+
+/** Minimal read-only view of the project registry maintained by @casepilot/server. */
+export async function readProjectsFile(registryPath: string): Promise<ProjectsFile> {
+  let raw: string;
+  try {
+    raw = await readFile(registryPath, 'utf8');
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return { version: 1, projects: [] };
+    throw err;
+  }
+  return projectsFileSchema.parse(JSON.parse(raw));
+}
+
+export interface ControlStartOptions {
+  workspace?: string;
+  serverUrl?: string;
+  registryPath?: string;
+  projectId?: string;
+}
+
+export async function resolveControlWorkspace(options: ControlStartOptions): Promise<string> {
+  if (options.workspace) return options.workspace;
+  if (!options.registryPath) {
+    throw new Error('control requires --workspace or --registry');
+  }
+  const { projects } = await readProjectsFile(options.registryPath);
+  const project = options.projectId
+    ? projects.find((p) => p.id === options.projectId)
+    : (projects.find((p) => p.id === 'default') ?? projects[0]);
+  if (!project) {
+    throw new Error(
+      options.projectId
+        ? `project "${options.projectId}" not found in ${options.registryPath}`
+        : `no projects registered in ${options.registryPath}`,
+    );
+  }
+  return project.path;
+}
+
 export function defaultNewRunId(): string {
   const ts = new Date().toISOString().replace(/[-:]/g, '').replace(/\..*$/, '').replace('T', '-');
   return `${ts}-${randomBytes(3).toString('hex')}`;
@@ -284,9 +328,25 @@ export function createControlHandlers(deps: ControlDeps): ControlHandlers {
   };
 }
 
-export function createControlServer(deps: ControlDeps): McpServer {
+export function createControlServer(deps: ControlDeps, extras?: { registryPath?: string }): McpServer {
   const handlers = createControlHandlers(deps);
   const server = new McpServer({ name: 'casepilot-control', version: '0.1.0' });
+
+  const registryPath = extras?.registryPath;
+  if (registryPath) {
+    server.registerTool(
+      'list_projects',
+      { description: 'List the casepilot projects registered in the project registry.', inputSchema: {} },
+      async () => {
+        try {
+          const { projects } = await readProjectsFile(registryPath);
+          return text(JSON.stringify(projects, null, 2));
+        } catch (err) {
+          return errText(`error: ${errorMessage(err)}`);
+        }
+      },
+    );
+  }
 
   server.registerTool(
     'list_cases',
@@ -352,8 +412,11 @@ export function createControlServer(deps: ControlDeps): McpServer {
   return server;
 }
 
-export async function runControl(options: { workspace: string; serverUrl?: string }): Promise<void> {
-  const server = createControlServer(createControlDeps(options.workspace, options.serverUrl));
+export async function runControl(options: ControlStartOptions): Promise<void> {
+  const workspace = await resolveControlWorkspace(options);
+  const server = createControlServer(createControlDeps(workspace, options.serverUrl), {
+    registryPath: options.registryPath,
+  });
   server.server.onclose = () => {
     process.exit(0);
   };

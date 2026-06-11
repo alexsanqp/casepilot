@@ -130,11 +130,50 @@ export function createActions(io: CliIo = consoleIo): CliActions {
       io.out(formatRunResult(JSON.parse(raw) as RunResult));
     },
 
-    async serve({ workspace, port }) {
+    async serve({ workspace, port, registry }) {
       const { startServer } = await import('@casepilot/server');
-      const { address } = await startServer({ workspace: path.resolve(workspace), port });
+      const { address } = await startServer({
+        workspace: workspace ? path.resolve(workspace) : undefined,
+        port,
+        registryPath: registry,
+      });
       io.out(`casepilot server listening on ${address}`);
+      io.out(workspace ? `Serving workspace ${path.resolve(workspace)}` : 'Serving all registered projects.');
       io.out('Press Ctrl+C to stop.');
+    },
+
+    async projectsList({ registry }) {
+      const { defaultRegistryPath, loadProjects } = await import('@casepilot/server/projects');
+      const registryPath = registry ?? defaultRegistryPath();
+      const { projects } = await loadProjects(registryPath);
+      if (projects.length === 0) {
+        io.out(`No projects registered in ${registryPath}`);
+        io.out('Register one with: casepilot projects add <path> [--name <name>]');
+        return;
+      }
+      for (const project of projects) {
+        io.out(`${project.id}  ${project.name}  ${project.path}`);
+      }
+    },
+
+    async projectsAdd({ path: projectPath, name, registry }) {
+      const { defaultRegistryPath, registerProject } = await import('@casepilot/server/projects');
+      const registryPath = registry ?? defaultRegistryPath();
+      const project = await registerProject(registryPath, { name, path: path.resolve(projectPath) });
+      io.out(`Registered project "${project.name}" (id: ${project.id})`);
+      io.out(`  path:     ${project.path}`);
+      io.out(`  registry: ${registryPath}`);
+    },
+
+    async projectsRemove({ id, registry }) {
+      const { defaultRegistryPath, removeProject } = await import('@casepilot/server/projects');
+      const registryPath = registry ?? defaultRegistryPath();
+      if (await removeProject(registryPath, id)) {
+        io.out(`Removed project "${id}" from ${registryPath} (workspace files untouched).`);
+      } else {
+        io.err(`No project with id "${id}" in ${registryPath}`);
+        process.exitCode = 1;
+      }
     },
 
     async mcp({ workspace }) {

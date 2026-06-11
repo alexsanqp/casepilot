@@ -7,8 +7,11 @@ export interface CliActions {
   export(opts: { workspace: string; caseName: string; out?: string }): Promise<void>;
   runs(opts: { workspace: string; server?: string }): Promise<void>;
   report(opts: { workspace: string; runId: string; server?: string }): Promise<void>;
-  serve(opts: { workspace: string; port: number }): Promise<void>;
+  serve(opts: { workspace?: string; port: number; registry?: string }): Promise<void>;
   mcp(opts: { workspace: string }): Promise<void>;
+  projectsList(opts: { registry?: string }): Promise<void>;
+  projectsAdd(opts: { path: string; name?: string; registry?: string }): Promise<void>;
+  projectsRemove(opts: { id: string; registry?: string }): Promise<void>;
 }
 
 export function createProgram(actions: CliActions): Command {
@@ -18,6 +21,8 @@ export function createProgram(actions: CliActions): Command {
     .option('--workspace <dir>', 'casepilot workspace directory', process.cwd());
 
   const workspace = (): string => program.opts<{ workspace: string }>().workspace;
+  const explicitWorkspace = (): string | undefined =>
+    program.getOptionValueSource('workspace') === 'default' ? undefined : workspace();
 
   program
     .command('init')
@@ -88,10 +93,42 @@ export function createProgram(actions: CliActions): Command {
 
   program
     .command('serve')
-    .description('Start the casepilot REST server')
+    .description('Start the casepilot REST server (all registered projects, or one workspace with --workspace)')
     .option('--port <port>', 'port to listen on', (v) => Number.parseInt(v, 10), 7700)
-    .action(async (opts: { port: number }) => {
-      await actions.serve({ workspace: workspace(), port: opts.port });
+    .option('--registry <file>', 'project registry file (default ~/.casepilot/projects.json)')
+    .action(async (opts: { port: number; registry?: string }) => {
+      await actions.serve({ workspace: explicitWorkspace(), port: opts.port, registry: opts.registry });
+    });
+
+  const projects = program
+    .command('projects')
+    .description('Manage the multi-project registry used by "casepilot serve" and the dashboard');
+
+  projects
+    .command('list')
+    .description('List registered projects')
+    .option('--registry <file>', 'project registry file (default ~/.casepilot/projects.json)')
+    .action(async (opts: { registry?: string }) => {
+      await actions.projectsList({ registry: opts.registry });
+    });
+
+  projects
+    .command('add')
+    .description('Register a project directory (scaffolds a casepilot workspace if needed)')
+    .argument('<path>', 'project directory')
+    .option('--name <name>', 'project display name (default: directory name)')
+    .option('--registry <file>', 'project registry file (default ~/.casepilot/projects.json)')
+    .action(async (projectPath: string, opts: { name?: string; registry?: string }) => {
+      await actions.projectsAdd({ path: projectPath, name: opts.name, registry: opts.registry });
+    });
+
+  projects
+    .command('remove')
+    .description('Remove a project from the registry (never deletes files)')
+    .argument('<id>', 'project id')
+    .option('--registry <file>', 'project registry file (default ~/.casepilot/projects.json)')
+    .action(async (id: string, opts: { registry?: string }) => {
+      await actions.projectsRemove({ id, registry: opts.registry });
     });
 
   program

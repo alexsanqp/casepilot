@@ -16,6 +16,10 @@
       "types": "./dist/runner.d.ts",
       "default": "./dist/runner.js"
     },
+    "./projects": {
+      "types": "./dist/projects.d.ts",
+      "default": "./dist/projects.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
