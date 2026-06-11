@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   deleteCase,
   errorMessage,
@@ -20,6 +20,7 @@ interface ExportState {
 }
 
 export function CasesPage() {
+  const { projectId = '' } = useParams<{ projectId: string }>();
   const [cases, setCases] = useState<CaseSummary[] | null>(null);
   const [stepCounts, setStepCounts] = useState<Record<string, number>>({});
   const [verdicts, setVerdicts] = useState<Record<string, Verdict>>({});
@@ -30,9 +31,9 @@ export function CasesPage() {
   const load = useCallback(async () => {
     try {
       const [caseList, runs, providerList] = await Promise.all([
-        listCases(),
-        listRuns(),
-        getProviders(),
+        listCases(projectId),
+        listRuns(projectId),
+        getProviders(projectId),
       ]);
       setCases(caseList);
       setProviders(providerList);
@@ -47,7 +48,7 @@ export function CasesPage() {
       const counts = await Promise.all(
         caseList.map(async (c) => {
           try {
-            const detail = await getCase(c.name);
+            const detail = await getCase(projectId, c.name);
             return [c.name, detail.spec.steps.length] as const;
           } catch {
             return [c.name, -1] as const;
@@ -58,7 +59,7 @@ export function CasesPage() {
     } catch (err) {
       setError(errorMessage(err));
     }
-  }, []);
+  }, [projectId]);
 
   useEffect(() => {
     void load();
@@ -68,13 +69,20 @@ export function CasesPage() {
     <div>
       <div className="page-header">
         <h1>Cases</h1>
-        <Link className="btn btn-primary" to="/cases/new">
+        <Link className="btn btn-primary" to={`/p/${encodeURIComponent(projectId)}/cases/new`}>
           New case
         </Link>
       </div>
       {error && <p className="message message-error">{error}</p>}
       {!cases && !error && <p className="muted">Loading cases…</p>}
-      {cases && cases.length === 0 && <p className="muted">No cases yet. Create one to start.</p>}
+      {cases && cases.length === 0 && (
+        <div className="empty-state">
+          <p className="muted">This project has no cases yet.</p>
+          <Link className="btn btn-primary" to={`/p/${encodeURIComponent(projectId)}/cases/new`}>
+            Create the first case
+          </Link>
+        </div>
+      )}
       {cases && cases.length > 0 && (
         <table className="table">
           <thead>
@@ -91,6 +99,7 @@ export function CasesPage() {
             {cases.map((c) => (
               <CaseRow
                 key={c.name}
+                projectId={projectId}
                 summary={c}
                 stepCount={stepCounts[c.name]}
                 verdict={verdicts[c.name]}
@@ -110,6 +119,7 @@ export function CasesPage() {
 }
 
 function CaseRow({
+  projectId,
   summary,
   stepCount,
   verdict,
@@ -117,6 +127,7 @@ function CaseRow({
   onChanged,
   onExport,
 }: {
+  projectId: string;
   summary: CaseSummary;
   stepCount: number | undefined;
   verdict: Verdict | undefined;
@@ -144,40 +155,45 @@ function CaseRow({
     }
   };
 
+  const runsPath = `/p/${encodeURIComponent(projectId)}/runs`;
+
   const runReplay = () =>
     act(async () => {
-      await startRun({ case: summary.name, mode: 'replay', video });
-      navigate('/runs');
+      await startRun(projectId, { case: summary.name, mode: 'replay', video });
+      navigate(runsPath);
     });
 
   const record = () =>
     act(async () => {
-      await startRun({
+      await startRun(projectId, {
         case: summary.name,
         mode: 'record',
         video,
         ...(selectedProvider ? { provider: selectedProvider } : {}),
       });
-      navigate('/runs');
+      navigate(runsPath);
     });
 
   const doExport = () =>
     act(async () => {
-      const { specTs } = await exportCase(summary.name);
+      const { specTs } = await exportCase(projectId, summary.name);
       onExport(specTs);
     });
 
   const doDelete = () =>
     act(async () => {
       if (!window.confirm(`Delete case "${summary.name}"?`)) return;
-      await deleteCase(summary.name);
+      await deleteCase(projectId, summary.name);
       await onChanged();
     });
 
   return (
     <tr>
       <td>
-        <Link className="link" to={`/cases/${encodeURIComponent(summary.name)}/edit`}>
+        <Link
+          className="link"
+          to={`/p/${encodeURIComponent(projectId)}/cases/${encodeURIComponent(summary.name)}/edit`}
+        >
           {summary.name}
         </Link>
       </td>

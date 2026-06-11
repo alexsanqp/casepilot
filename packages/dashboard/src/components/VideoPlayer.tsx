@@ -1,7 +1,7 @@
 import { videoUrl } from '../api/client';
 
-export function VideoPlayer({ runId }: { runId: string }) {
-  const src = videoUrl(runId);
+export function VideoPlayer({ projectId, runId }: { projectId: string; runId: string }) {
+  const src = videoUrl(projectId, runId);
   return (
     <div className="video-player">
       <video controls src={src} />

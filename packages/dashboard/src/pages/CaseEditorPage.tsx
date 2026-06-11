@@ -14,9 +14,10 @@ expect:
 `;
 
 export function CaseEditorPage() {
-  const { name: routeName } = useParams<{ name: string }>();
+  const { projectId = '', name: routeName } = useParams<{ projectId: string; name: string }>();
   const navigate = useNavigate();
   const isNew = routeName === undefined;
+  const casesPath = `/p/${encodeURIComponent(projectId)}/cases`;
 
   const [name, setName] = useState(routeName ?? '');
   const [yaml, setYaml] = useState(isNew ? TEMPLATE : '');
@@ -27,7 +28,7 @@ export function CaseEditorPage() {
   useEffect(() => {
     if (routeName === undefined) return;
     let cancelled = false;
-    getCase(routeName)
+    getCase(projectId, routeName)
       .then((detail) => {
         if (cancelled) return;
         setYaml(detail.specYaml);
@@ -41,7 +42,7 @@ export function CaseEditorPage() {
     return () => {
       cancelled = true;
     };
-  }, [routeName]);
+  }, [projectId, routeName]);
 
   const save = async () => {
     const trimmed = name.trim();
@@ -52,8 +53,8 @@ export function CaseEditorPage() {
     setSaving(true);
     setError(null);
     try {
-      await saveCase(trimmed, yaml);
-      navigate('/');
+      await saveCase(projectId, trimmed, yaml);
+      navigate(casesPath);
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -99,7 +100,7 @@ export function CaseEditorPage() {
             >
               {saving ? 'Saving…' : 'Save'}
             </button>
-            <button type="button" className="btn" onClick={() => navigate('/')}>
+            <button type="button" className="btn" onClick={() => navigate(casesPath)}>
               Cancel
             </button>
           </div>

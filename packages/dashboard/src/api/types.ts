@@ -1,3 +1,19 @@
+export interface Project {
+  id: string;
+  name: string;
+  path: string;
+  caseCount: number;
+  lastRunAt?: string;
+}
+
+export interface ProjectsResponse {
+  projects: Project[];
+}
+
+export interface AddProjectResponse {
+  project: Project;
+}
+
 export interface Health {
   ok: boolean;
   version: string;

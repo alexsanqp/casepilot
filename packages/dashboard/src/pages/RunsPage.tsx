@@ -1,14 +1,16 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { listRuns } from '../api/client';
 import { ModeBadge, VerdictBadge } from '../components/Badge';
 import { usePolling } from '../hooks/usePolling';
 import { formatTime, runDuration, shortId } from '../lib/format';
 
 export function RunsPage() {
+  const { projectId = '' } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+  const fetchRuns = useCallback(() => listRuns(projectId), [projectId]);
   const [intervalMs, setIntervalMs] = useState<number | null>(2000);
-  const { data: runs, error, loading, refresh } = usePolling(listRuns, intervalMs);
+  const { data: runs, error, loading, refresh } = usePolling(fetchRuns, intervalMs);
 
   useEffect(() => {
     setIntervalMs(runs?.some((r) => r.status === 'running') ? 2000 : null);
@@ -44,7 +46,11 @@ export function RunsPage() {
               <tr
                 key={r.runId}
                 className="clickable"
-                onClick={() => navigate(`/runs/${encodeURIComponent(r.runId)}`)}
+                onClick={() =>
+                  navigate(
+                    `/p/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(r.runId)}`,
+                  )
+                }
               >
                 <td>
                   <code>{shortId(r.runId)}</code>

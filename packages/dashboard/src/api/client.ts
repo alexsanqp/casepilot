@@ -1,8 +1,10 @@
 import type {
+  AddProjectResponse,
   CaseDetail,
   CaseSummary,
   ExportResponse,
   Health,
+  ProjectsResponse,
   ProvidersResponse,
   RunDetail,
   RunSummary,
@@ -53,36 +55,55 @@ const json = (body: unknown): RequestInit => ({
   body: JSON.stringify(body),
 });
 
+const projectBase = (projectId: string): string => `/api/projects/${encodeURIComponent(projectId)}`;
+
 export const getHealth = (): Promise<Health> => requestJson('/api/health');
 
-export const listCases = (): Promise<CaseSummary[]> => requestJson('/api/cases');
+export const listProjects = (): Promise<ProjectsResponse> => requestJson('/api/projects');
 
-export const getCase = (name: string): Promise<CaseDetail> =>
-  requestJson(`/api/cases/${encodeURIComponent(name)}`);
+export const addProject = (name: string, path: string): Promise<AddProjectResponse> =>
+  requestJson('/api/projects', { method: 'POST', ...json({ name, path }) });
 
-export const saveCase = (name: string, specYaml: string): Promise<unknown> =>
-  requestJson(`/api/cases/${encodeURIComponent(name)}`, { method: 'PUT', ...json({ specYaml }) });
+export const removeProject = (id: string): Promise<unknown> =>
+  requestJson(`/api/projects/${encodeURIComponent(id)}`, { method: 'DELETE' });
 
-export const deleteCase = (name: string): Promise<unknown> =>
-  requestJson(`/api/cases/${encodeURIComponent(name)}`, { method: 'DELETE' });
+export const listCases = (projectId: string): Promise<CaseSummary[]> =>
+  requestJson(`${projectBase(projectId)}/cases`);
 
-export const exportCase = (name: string): Promise<ExportResponse> =>
-  requestJson(`/api/cases/${encodeURIComponent(name)}/export`, { method: 'POST' });
+export const getCase = (projectId: string, name: string): Promise<CaseDetail> =>
+  requestJson(`${projectBase(projectId)}/cases/${encodeURIComponent(name)}`);
 
-export const getProviders = (): Promise<ProvidersResponse> => requestJson('/api/providers');
+export const saveCase = (projectId: string, name: string, specYaml: string): Promise<unknown> =>
+  requestJson(`${projectBase(projectId)}/cases/${encodeURIComponent(name)}`, {
+    method: 'PUT',
+    ...json({ specYaml }),
+  });
 
-export const startRun = (req: StartRunRequest): Promise<StartRunResponse> =>
-  requestJson('/api/runs', { method: 'POST', ...json(req) });
+export const deleteCase = (projectId: string, name: string): Promise<unknown> =>
+  requestJson(`${projectBase(projectId)}/cases/${encodeURIComponent(name)}`, { method: 'DELETE' });
 
-export const listRuns = (): Promise<RunSummary[]> => requestJson('/api/runs');
+export const exportCase = (projectId: string, name: string): Promise<ExportResponse> =>
+  requestJson(`${projectBase(projectId)}/cases/${encodeURIComponent(name)}/export`, {
+    method: 'POST',
+  });
 
-export const getRun = (id: string): Promise<RunDetail> =>
-  requestJson(`/api/runs/${encodeURIComponent(id)}`);
+export const getProviders = (projectId: string): Promise<ProvidersResponse> =>
+  requestJson(`${projectBase(projectId)}/providers`);
 
-export const getTranscript = (id: string): Promise<string> =>
-  requestText(`/api/runs/${encodeURIComponent(id)}/transcript`);
+export const startRun = (projectId: string, req: StartRunRequest): Promise<StartRunResponse> =>
+  requestJson(`${projectBase(projectId)}/runs`, { method: 'POST', ...json(req) });
 
-export const videoUrl = (id: string): string => `/api/runs/${encodeURIComponent(id)}/video`;
+export const listRuns = (projectId: string): Promise<RunSummary[]> =>
+  requestJson(`${projectBase(projectId)}/runs`);
+
+export const getRun = (projectId: string, id: string): Promise<RunDetail> =>
+  requestJson(`${projectBase(projectId)}/runs/${encodeURIComponent(id)}`);
+
+export const getTranscript = (projectId: string, id: string): Promise<string> =>
+  requestText(`${projectBase(projectId)}/runs/${encodeURIComponent(id)}/transcript`);
+
+export const videoUrl = (projectId: string, id: string): string =>
+  `${projectBase(projectId)}/runs/${encodeURIComponent(id)}/video`;
 
 export function errorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;

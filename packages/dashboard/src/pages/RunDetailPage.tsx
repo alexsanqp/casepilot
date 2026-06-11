@@ -9,10 +9,10 @@ import { usePolling } from '../hooks/usePolling';
 import { runDuration } from '../lib/format';
 
 export function RunDetailPage() {
-  const { id } = useParams<{ id: string }>();
+  const { projectId = '', id } = useParams<{ projectId: string; id: string }>();
   const runId = id ?? '';
 
-  const fetchRun = useCallback(() => getRun(runId), [runId]);
+  const fetchRun = useCallback(() => getRun(projectId, runId), [projectId, runId]);
   const [intervalMs, setIntervalMs] = useState<number | null>(2000);
   const { data: run, error, loading } = usePolling(fetchRun, intervalMs);
 
@@ -28,7 +28,7 @@ export function RunDetailPage() {
         <h1>
           Run <code>{runId}</code>
         </h1>
-        <Link className="link" to="/runs">
+        <Link className="link" to={`/p/${encodeURIComponent(projectId)}/runs`}>
           ← All runs
         </Link>
       </div>
@@ -41,12 +41,20 @@ export function RunDetailPage() {
           <p>{run.error ?? 'Run failed with an unknown error.'}</p>
         </div>
       )}
-      {run?.result && <RunResultView runId={runId} result={run.result} />}
+      {run?.result && <RunResultView projectId={projectId} runId={runId} result={run.result} />}
     </div>
   );
 }
 
-function RunResultView({ runId, result }: { runId: string; result: RunResult }) {
+function RunResultView({
+  projectId,
+  runId,
+  result,
+}: {
+  projectId: string;
+  runId: string;
+  result: RunResult;
+}) {
   return (
     <div className="run-detail">
       <div className={`banner ${result.verdict === 'passed' ? 'banner-pass' : 'banner-fail'}`}>
@@ -66,17 +74,17 @@ function RunResultView({ runId, result }: { runId: string; result: RunResult }) 
       {result.artifacts.videoPath && (
         <section>
           <h2>Video</h2>
-          <VideoPlayer runId={runId} />
+          <VideoPlayer projectId={projectId} runId={runId} />
         </section>
       )}
 
-      <TranscriptSection runId={runId} />
-      <ReplaySection caseName={result.case} />
+      <TranscriptSection projectId={projectId} runId={runId} />
+      <ReplaySection projectId={projectId} caseName={result.case} />
     </div>
   );
 }
 
-function TranscriptSection({ runId }: { runId: string }) {
+function TranscriptSection({ projectId, runId }: { projectId: string; runId: string }) {
   const [text, setText] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [requested, setRequested] = useState(false);
@@ -84,7 +92,7 @@ function TranscriptSection({ runId }: { runId: string }) {
   const load = () => {
     if (requested) return;
     setRequested(true);
-    getTranscript(runId)
+    getTranscript(projectId, runId)
       .then(setText)
       .catch((err: unknown) => setError(errorMessage(err)));
   };
@@ -98,7 +106,7 @@ function TranscriptSection({ runId }: { runId: string }) {
   );
 }
 
-function ReplaySection({ caseName }: { caseName: string }) {
+function ReplaySection({ projectId, caseName }: { projectId: string; caseName: string }) {
   const [replay, setReplay] = useState<ReplayFile | null>(null);
   const [missing, setMissing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -107,7 +115,7 @@ function ReplaySection({ caseName }: { caseName: string }) {
   const load = () => {
     if (requested) return;
     setRequested(true);
-    getCase(caseName)
+    getCase(projectId, caseName)
       .then((detail) => {
         if (detail.replay) setReplay(detail.replay);
         else setMissing(true);

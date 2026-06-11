@@ -30,7 +30,7 @@ export function usePolling<T>(fn: () => Promise<T>, intervalMs: number | null): 
 
   useEffect(() => {
     void refresh();
-  }, [refresh]);
+  }, [fn, refresh]);
 
   useEffect(() => {
     if (intervalMs === null) return;
