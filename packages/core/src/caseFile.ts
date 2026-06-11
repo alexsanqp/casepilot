@@ -1,0 +1,102 @@
+import { readFile, writeFile } from 'node:fs/promises';
+import YAML from 'yaml';
+import { z } from 'zod';
+import type { CaseSpec, ReplayFile } from './types.js';
+
+const caseSpecSchema = z
+  .object({
+    name: z.string().min(1, 'name must be a non-empty string'),
+    url: z.string().min(1, 'url must be a non-empty string'),
+    steps: z.array(z.string().min(1)).min(1, 'steps must contain at least one step'),
+    expect: z.array(z.string().min(1)).min(1, 'expect must contain at least one expectation'),
+  })
+  .strict();
+
+const actStepSchema = z
+  .object({
+    kind: z.literal('act'),
+    action: z.enum(['click', 'fill', 'press', 'select', 'goto', 'scroll', 'waitFor']),
+    selector: z.string().optional(),
+    value: z.string().optional(),
+    note: z.string().optional(),
+  })
+  .strict();
+
+const assertStepSchema = z
+  .object({
+    kind: z.literal('assert'),
+    assert: z.enum(['visible', 'absent', 'textPresent', 'urlContains', 'valueEquals']),
+    selector: z.string().optional(),
+    text: z.string().optional(),
+    note: z.string().optional(),
+  })
+  .strict();
+
+const replayFileSchema = z
+  .object({
+    version: z.literal(1),
+    case: z.string().min(1),
+    url: z.string().min(1),
+    providerUsed: z.string(),
+    recordedAt: z.string(),
+    steps: z.array(z.discriminatedUnion('kind', [actStepSchema, assertStepSchema])),
+    meta: z.object({ healCount: z.number().int().nonnegative() }).strict(),
+  })
+  .strict();
+
+function formatIssues(error: z.ZodError): string {
+  return error.issues.map((issue) => `${issue.path.join('.') || '(root)'}: ${issue.message}`).join('; ');
+}
+
+export function parseCaseSpec(input: unknown, source = 'case spec'): CaseSpec {
+  const parsed = caseSpecSchema.safeParse(input);
+  if (!parsed.success) {
+    throw new Error(`Invalid ${source}: ${formatIssues(parsed.error)}`);
+  }
+  return parsed.data;
+}
+
+export function parseReplayFile(input: unknown, source = 'replay file'): ReplayFile {
+  if (typeof input === 'object' && input !== null && 'version' in input && (input as { version: unknown }).version !== 1) {
+    throw new Error(
+      `Unsupported ${source} version ${String((input as { version: unknown }).version)}; this build supports version 1`,
+    );
+  }
+  const parsed = replayFileSchema.safeParse(input);
+  if (!parsed.success) {
+    throw new Error(`Invalid ${source}: ${formatIssues(parsed.error)}`);
+  }
+  return parsed.data;
+}
+
+export async function loadCaseFile(filePath: string): Promise<CaseSpec> {
+  const raw = await readFile(filePath, 'utf8');
+  let doc: unknown;
+  try {
+    doc = YAML.parse(raw);
+  } catch (err) {
+    throw new Error(`Failed to parse YAML in ${filePath}: ${err instanceof Error ? err.message : String(err)}`);
+  }
+  return parseCaseSpec(doc, `case file ${filePath}`);
+}
+
+export async function saveCaseFile(filePath: string, spec: CaseSpec): Promise<void> {
+  const validated = parseCaseSpec(spec);
+  await writeFile(filePath, YAML.stringify(validated), 'utf8');
+}
+
+export async function loadReplayFile(filePath: string): Promise<ReplayFile> {
+  const raw = await readFile(filePath, 'utf8');
+  let doc: unknown;
+  try {
+    doc = JSON.parse(raw);
+  } catch (err) {
+    throw new Error(`Failed to parse JSON in ${filePath}: ${err instanceof Error ? err.message : String(err)}`);
+  }
+  return parseReplayFile(doc, `replay file ${filePath}`);
+}
+
+export async function saveReplayFile(filePath: string, replay: ReplayFile): Promise<void> {
+  const validated = parseReplayFile(replay);
+  await writeFile(filePath, JSON.stringify(validated, null, 2), 'utf8');
+}

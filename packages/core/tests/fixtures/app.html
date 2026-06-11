@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>CasePilot Fixture App</title>
+  <style>
+    body { font-family: sans-serif; margin: 2rem; }
+    .clicky { cursor: pointer; padding: 0.5rem; border: 1px solid #888; width: fit-content; margin-top: 1rem; }
+    #toast { background: #d3f9d8; padding: 0.5rem; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>Profile settings</h1>
+  <form id="profile-form">
+    <label for="username">Username</label>
+    <input id="username" name="username" type="text" />
+    <button id="save-btn" type="button">Save</button>
+  </form>
+  <div class="clicky" id="open-prefs" tabindex="0">Open preferences</div>
+  <div id="prefs" hidden>Preferences panel</div>
+  <script>
+    document.getElementById('save-btn').addEventListener('click', () => {
+      setTimeout(() => {
+        const toast = document.createElement('div');
+        toast.id = 'toast';
+        toast.textContent = 'Saved successfully';
+        document.body.appendChild(toast);
+      }, 150);
+    });
+    document.getElementById('open-prefs').addEventListener('click', () => {
+      document.getElementById('prefs').hidden = false;
+    });
+  </script>
+</body>
+</html>

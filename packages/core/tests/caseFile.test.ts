@@ -1,0 +1,81 @@
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { loadCaseFile, loadReplayFile, parseReplayFile, saveCaseFile, saveReplayFile } from '../src/caseFile.js';
+import type { ReplayFile } from '../src/types.js';
+
+let dir: string;
+
+beforeAll(async () => {
+  dir = await mkdtemp(path.join(tmpdir(), 'casepilot-casefile-'));
+});
+
+afterAll(async () => {
+  await rm(dir, { recursive: true, force: true });
+});
+
+describe('case files', () => {
+  it('loads a valid *.case.yaml', async () => {
+    const filePath = path.join(dir, 'save.case.yaml');
+    await writeFile(
+      filePath,
+      [
+        'name: Save profile',
+        'url: https://app.example.com/profile',
+        'steps:',
+        '  - Fill the username input with alice',
+        '  - Click the Save button',
+        'expect:',
+        '  - A toast saying "Saved successfully" appears',
+      ].join('\n'),
+      'utf8',
+    );
+    const spec = await loadCaseFile(filePath);
+    expect(spec.name).toBe('Save profile');
+    expect(spec.steps).toHaveLength(2);
+    expect(spec.expect).toEqual(['A toast saying "Saved successfully" appears']);
+  });
+
+  it('rejects a case file missing required fields with an actionable error', async () => {
+    const filePath = path.join(dir, 'broken.case.yaml');
+    await writeFile(filePath, ['name: Broken case', 'steps:', '  - Do something'].join('\n'), 'utf8');
+    await expect(loadCaseFile(filePath)).rejects.toThrow(/url/);
+  });
+
+  it('round-trips through saveCaseFile', async () => {
+    const filePath = path.join(dir, 'roundtrip.case.yaml');
+    const spec = { name: 'RT', url: 'https://x.test', steps: ['step'], expect: ['expectation'] };
+    await saveCaseFile(filePath, spec);
+    expect(await loadCaseFile(filePath)).toEqual(spec);
+  });
+});
+
+describe('replay files', () => {
+  const replay: ReplayFile = {
+    version: 1,
+    case: 'Save profile',
+    url: 'https://app.example.com/profile',
+    providerUsed: 'fake',
+    recordedAt: '2026-06-11T00:00:00.000Z',
+    steps: [
+      { kind: 'act', action: 'click', selector: 'role=button[name="Save"]' },
+      { kind: 'assert', assert: 'visible', selector: 'text="Saved successfully"' },
+    ],
+    meta: { healCount: 0 },
+  };
+
+  it('round-trips through save/load with validation', async () => {
+    const filePath = path.join(dir, 'replay.json');
+    await saveReplayFile(filePath, replay);
+    expect(await loadReplayFile(filePath)).toEqual(replay);
+  });
+
+  it('rejects unsupported versions', () => {
+    expect(() => parseReplayFile({ ...replay, version: 2 })).toThrow(/version 2/);
+  });
+
+  it('rejects malformed steps', () => {
+    expect(() => parseReplayFile({ ...replay, steps: [{ kind: 'act', action: 'teleport' }] })).toThrow(/steps\.0/);
+  });
+});
