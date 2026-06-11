@@ -13,6 +13,7 @@ export const providerEntrySchema = z
     maxTokens: z.number().int().positive().optional(),
     command: z.string().optional(),
     extraArgs: z.array(z.string()).optional(),
+    maxTurns: z.number().int().positive().optional(),
     headers: z.record(z.string()).optional(),
   })
   .passthrough();

@@ -67,6 +67,8 @@ export function buildAgentTaskPrompt(spec: CaseSpec): string {
     'Rules:',
     '- Use query_page to locate elements and prefer the selectors it returns.',
     '- Every successful act/assert is recorded into a deterministic replay.',
+    '- Your turn budget is limited: batch multiple independent tool calls in a single message whenever possible (e.g. query_page for the next element together with an act on the current one, or several asserts at once).',
+    '- Page state persists between tool calls; do not re-check state you already know.',
     '- You MUST finish by calling report_result with passed=true/false and a short explanation. Do not stop before that.',
   ].join('\n');
 }
@@ -115,13 +117,24 @@ async function recordViaAgent(
   if (req.video) mcpArgs.push('--video');
   if (req.headed) mcpArgs.push('--headed');
 
-  const { transcript } = await provider.runTask({
-    taskPrompt: buildAgentTaskPrompt(spec),
-    mcp: { command: process.execPath, args: mcpArgs },
-    cwd: req.workspace,
-  });
-
   const transcriptPath = path.join(req.runDir, 'transcript.txt');
+  let transcript: string;
+  try {
+    ({ transcript } = await provider.runTask({
+      taskPrompt: buildAgentTaskPrompt(spec),
+      mcp: { command: process.execPath, args: mcpArgs },
+      cwd: req.workspace,
+    }));
+  } catch (err) {
+    // Agent CLI failures (CliExitError) carry the full captured stdout; persist
+    // it so a failed run still leaves the complete session transcript behind.
+    const captured = (err as { stdout?: unknown }).stdout;
+    if (typeof captured === 'string' && captured.length > 0) {
+      await writeFile(transcriptPath, captured, 'utf8');
+    }
+    throw err;
+  }
+
   await writeFile(transcriptPath, transcript ?? '', 'utf8');
 
   const resultPath = path.join(req.runDir, 'result.json');

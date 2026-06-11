@@ -14,10 +14,23 @@ export interface RunCliOptions {
   label: string;
   /** Written to the child's stdin, which is then closed. Default: stdin is ignored. */
   stdin?: string;
+  /** Extra environment variables merged over process.env for the child. */
+  env?: Record<string, string>;
 }
 
 export interface RunCliResult {
   stdout: string;
+}
+
+/** Non-zero exit from the CLI; carries the full captured stdout for diagnostics. */
+export class CliExitError extends Error {
+  constructor(
+    message: string,
+    readonly stdout: string,
+  ) {
+    super(message);
+    this.name = 'CliExitError';
+  }
 }
 
 export function runCli(opts: RunCliOptions): Promise<RunCliResult> {
@@ -36,6 +49,7 @@ export function runCli(opts: RunCliOptions): Promise<RunCliResult> {
       windowsHide: true,
       windowsVerbatimArguments: target.verbatim,
       stdio: [opts.stdin === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'],
+      env: opts.env ? { ...process.env, ...opts.env } : undefined,
     });
 
     if (opts.stdin !== undefined && child.stdin) {
@@ -90,10 +104,11 @@ export function runCli(opts: RunCliOptions): Promise<RunCliResult> {
             excerpt(stderr) ||
             (stdout.trim() ? `(stdout tail) ${excerpt(stdout.trim().slice(-2000))}` : '(no output)');
           reject(
-            new Error(
+            new CliExitError(
               `${opts.label}: "${opts.command}" exited with ${
                 code === null ? `signal ${signal}` : `code ${code}`
               }: ${detail}`,
+              stdout,
             ),
           );
         }

@@ -47,6 +47,7 @@ const builtinFactories: ReadonlyMap<string, ProviderFactory> = new Map<string, P
         command: entry.command,
         model: entry.model,
         extraArgs: entry.extraArgs,
+        maxTurns: entry.maxTurns,
       }),
   ],
   [

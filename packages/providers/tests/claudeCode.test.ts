@@ -33,7 +33,7 @@ describe('createClaudeCodeProvider', () => {
     expect(echoed.args[echoed.args.indexOf('--settings') + 1]).toBe('{"disableAllHooks":true}');
     expect(echoed.args).toContain('--allowedTools');
     expect(echoed.args[echoed.args.indexOf('--allowedTools') + 1]).toBe('mcp__casepilot__*');
-    expect(echoed.args[echoed.args.indexOf('--max-turns') + 1]).toBe('40');
+    expect(echoed.args[echoed.args.indexOf('--max-turns') + 1]).toBe('100');
     expect(echoed.args[echoed.args.indexOf('--model') + 1]).toBe('opus');
 
     expect(echoed.mcpConfig).toEqual({
@@ -45,16 +45,30 @@ describe('createClaudeCodeProvider', () => {
     expect(existsSync(tmpPath as string)).toBe(false);
   });
 
-  it('rejects with the stdout tail when the CLI fails with silent stderr', async () => {
+  it('honors a custom maxTurns', async () => {
+    const provider = createClaudeCodeProvider({
+      id: 'cc',
+      command: process.execPath,
+      extraArgs: [fakeCli],
+      maxTurns: 7,
+    });
+    const { transcript } = await provider.runTask({ taskPrompt: 'x', mcp });
+    const echoed = JSON.parse(transcript.trim()) as { args: string[] };
+    expect(echoed.args[echoed.args.indexOf('--max-turns') + 1]).toBe('7');
+  });
+
+  it('rejects with the stdout tail when the CLI fails with silent stderr, keeping full stdout on the error', async () => {
     const provider = createClaudeCodeProvider({
       id: 'cc',
       command: process.execPath,
       extraArgs: [fileURLToPath(new URL('./fixtures/fake-cli-fail-stdout.mjs', import.meta.url))],
     });
 
-    await expect(provider.runTask({ taskPrompt: 'whatever', mcp })).rejects.toThrow(
-      /code 1.*stdout tail.*Failed to authenticate/s,
-    );
+    const rejection = provider.runTask({ taskPrompt: 'whatever', mcp });
+    await expect(rejection).rejects.toThrow(/code 1.*stdout tail.*Failed to authenticate/s);
+    await rejection.catch((err: unknown) => {
+      expect((err as { stdout?: string }).stdout).toContain('Failed to authenticate');
+    });
   });
 
   it('rejects with stderr excerpt on non-zero exit and still cleans up the tmpfile', async () => {

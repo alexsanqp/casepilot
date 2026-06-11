@@ -64,6 +64,37 @@ describe('executeRun failure reporting', () => {
     await expect(readFile(path.join(runDir, 'video', 'page@dead.webm'))).rejects.toThrow();
   });
 
+  it('persists the captured transcript when an agent provider rejects', async () => {
+    const { workspace, runDir } = await setupWorkspace();
+    const agentError = Object.assign(new Error('claude exited with code 1'), {
+      stdout: '{"type":"result","subtype":"error_max_turns"}',
+    });
+    const agentProvider = {
+      kind: 'agent' as const,
+      id: 'fake-agent',
+      runTask: vi.fn(async () => {
+        throw agentError;
+      }),
+    };
+    const agentRegistry: ProviderRegistryLike = {
+      get: () => agentProvider,
+      list: () => [{ id: 'fake-agent', kind: 'agent', type: 'fake' }],
+      default: () => agentProvider,
+    };
+    const deps: RunnerDeps = {
+      engine: { recordCase: vi.fn(), replayCase: vi.fn() },
+      loadRegistry: async () => agentRegistry,
+      resolveMcpBin: () => 'C:/fake/mcp/bin.js',
+    };
+
+    await expect(
+      executeRun({ workspace, caseName: 'login', mode: 'record', providerId: 'fake-agent', runDir }, deps),
+    ).rejects.toThrow(/exited with code 1/);
+
+    const transcript = await readFile(path.join(runDir, 'transcript.txt'), 'utf8');
+    expect(transcript).toContain('error_max_turns');
+  });
+
   it('writes an error result.json when the replay file is missing', async () => {
     const { workspace, runDir } = await setupWorkspace();
     const deps: RunnerDeps = {

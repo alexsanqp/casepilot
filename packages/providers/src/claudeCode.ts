@@ -11,10 +11,15 @@ export interface ClaudeCodeProviderOptions {
   model?: string;
   /** Prepended to the CLI args (also the test seam: command 'node' + extraArgs ['script.mjs']). */
   extraArgs?: string[];
+  /**
+   * Agent turn budget (--max-turns). Every tool call costs a turn, and a real
+   * login + navigate + form flow easily exceeds small budgets. Default 100.
+   */
+  maxTurns?: number;
 }
 
 export function createClaudeCodeProvider(opts: ClaudeCodeProviderOptions): AgentProvider {
-  const { id, command = 'claude', model, extraArgs = [] } = opts;
+  const { id, command = 'claude', model, extraArgs = [], maxTurns = 100 } = opts;
   const label = `claude-code provider "${id}"`;
 
   return {
@@ -47,10 +52,18 @@ export function createClaudeCodeProvider(opts: ClaudeCodeProviderOptions): Agent
           '--allowedTools',
           'mcp__casepilot__*',
           '--max-turns',
-          '40',
+          String(maxTurns),
         ];
         if (model) args.push('--model', model);
-        const { stdout } = await runCli({ command, args, cwd, label });
+        const { stdout } = await runCli({
+          command,
+          args,
+          cwd,
+          label,
+          // Tolerate slow MCP servers/tools: the browser bridge may take 60s+
+          // on its first page interaction against lazily compiled dev servers.
+          env: { MCP_TIMEOUT: '120000', MCP_TOOL_TIMEOUT: '300000' },
+        });
         return { transcript: stdout };
       } finally {
         await rm(mcpConfigPath, { force: true });
