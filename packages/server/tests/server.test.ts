@@ -675,3 +675,55 @@ describe('single-workspace mode projects view', () => {
     expect((await app.inject({ method: 'DELETE', url: '/api/projects/default' })).statusCode).toBe(404);
   });
 });
+
+describe('POST runs baseUrl', () => {
+  it('400s on a non-absolute baseUrl', async () => {
+    const { app } = await setup();
+    for (const baseUrl of ['/relative', 'staging.example.com', 'ftp://example.com', '']) {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/runs',
+        payload: { case: 'login', mode: 'record', baseUrl },
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.json().error).toContain('baseUrl');
+    }
+  });
+
+  it('passes a valid body baseUrl into the engine run options', async () => {
+    const recordCase = vi.fn(async () => ({ result: makeResult('record'), replay: makeReplay() }));
+    const { app, engine } = await setup({ engine: { recordCase } });
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/runs',
+      payload: { case: 'login', mode: 'record', baseUrl: 'https://req.example.com' },
+    });
+    expect(res.statusCode).toBe(202);
+    const { runId } = res.json() as { runId: string };
+    await app.runService.settled(runId);
+
+    expect(engine.recordCase).toHaveBeenCalledTimes(1);
+    const options = (engine.recordCase as ReturnType<typeof vi.fn>).mock.calls[0]![2] as { baseUrl?: string };
+    expect(options.baseUrl).toBe('https://req.example.com');
+  });
+
+  it('body baseUrl overrides the workspace config baseUrl', async () => {
+    const recordCase = vi.fn(async () => ({ result: makeResult('record'), replay: makeReplay() }));
+    const { app, workspace, engine } = await setup({ engine: { recordCase } });
+    await writeFile(
+      path.join(workspace, 'casepilot.config.yaml'),
+      'providers: []\nbaseUrl: https://cfg.example.com\n',
+      'utf8',
+    );
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/runs',
+      payload: { case: 'login', mode: 'record', baseUrl: 'https://req.example.com' },
+    });
+    const { runId } = res.json() as { runId: string };
+    await app.runService.settled(runId);
+
+    const options = (engine.recordCase as ReturnType<typeof vi.fn>).mock.calls[0]![2] as { baseUrl?: string };
+    expect(options.baseUrl).toBe('https://req.example.com');
+  });
+});

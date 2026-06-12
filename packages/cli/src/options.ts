@@ -29,6 +29,37 @@ export function parseVideoPad(value: string): number {
   return padMs;
 }
 
+function isAbsoluteHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+export function parseBaseUrl(value: string): string {
+  if (!isAbsoluteHttpUrl(value)) {
+    throw new InvalidArgumentError(
+      `base url must be an absolute http(s) URL like "https://app.example.com", got "${value}"`,
+    );
+  }
+  return value;
+}
+
+/** Precedence: --base-url flag > CASEPILOT_BASE_URL env var > undefined (workspace config applies later). */
+export function resolveBaseUrl(flag: string | undefined, env: NodeJS.ProcessEnv = process.env): string | undefined {
+  if (flag !== undefined) return flag;
+  const fromEnv = env.CASEPILOT_BASE_URL;
+  if (fromEnv === undefined || fromEnv === '') return undefined;
+  if (!isAbsoluteHttpUrl(fromEnv)) {
+    throw new InvalidArgumentError(
+      `CASEPILOT_BASE_URL must be an absolute http(s) URL like "https://app.example.com", got "${fromEnv}"`,
+    );
+  }
+  return fromEnv;
+}
+
 export function parseHealPolicy(value: string): 'review' | 'auto' {
   if (value !== 'review' && value !== 'auto') {
     throw new InvalidArgumentError(`heal policy must be "review" or "auto", got "${value}"`);

@@ -3,10 +3,29 @@ import YAML from 'yaml';
 import { z } from 'zod';
 import type { CaseSpec, ReplayFile } from './types.js';
 
+function isValidCaseUrl(value: string): boolean {
+  if (/^[a-z][a-z0-9+.-]*:/i.test(value)) {
+    try {
+      new URL(value);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  return value.startsWith('/');
+}
+
+const caseUrlSchema = z
+  .string()
+  .min(1, 'url must be a non-empty string')
+  .refine(isValidCaseUrl, {
+    message: 'url must be an absolute URL (e.g. https://app.example.com/login) or a relative path starting with "/"',
+  });
+
 const caseSpecSchema = z
   .object({
     name: z.string().min(1, 'name must be a non-empty string'),
-    url: z.string().min(1, 'url must be a non-empty string'),
+    url: caseUrlSchema,
     steps: z.array(z.string().min(1)).min(1, 'steps must contain at least one step'),
     expect: z.array(z.string().min(1)).min(1, 'expect must contain at least one expectation'),
   })
@@ -36,7 +55,7 @@ const replayFileSchema = z
   .object({
     version: z.literal(1),
     case: z.string().min(1),
-    url: z.string().min(1),
+    url: caseUrlSchema,
     providerUsed: z.string(),
     recordedAt: z.string(),
     steps: z.array(z.discriminatedUnion('kind', [actStepSchema, assertStepSchema])),

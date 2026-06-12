@@ -8,28 +8,62 @@ export type HealPolicy = 'review' | 'auto';
 
 // The full casepilot.config.yaml schema lives in @casepilot/providers, whose
 // root schema strips unknown keys (no passthrough), so the parsed providers
-// config never carries healPolicy. We read the raw yaml here with a local
-// pick for this one server-owned key instead of touching that package.
+// config never carries the server-owned keys (healPolicy, baseUrl). We read
+// the raw yaml here with local picks instead of touching that package.
 const healPolicySchema = z
   .object({ healPolicy: z.enum(['review', 'auto']).optional() })
   .passthrough();
 
-export async function readWorkspaceHealPolicy(workspace: string): Promise<HealPolicy> {
+const baseUrlSchema = z
+  .object({ baseUrl: z.string().optional() })
+  .passthrough();
+
+export function isAbsoluteHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+async function readWorkspaceConfigDoc(workspace: string): Promise<unknown> {
   let raw: string;
   try {
     raw = await readFile(path.join(workspace, CONFIG_FILE_NAME), 'utf8');
   } catch {
-    return 'review';
+    return undefined;
   }
-  let doc: unknown;
   try {
-    doc = YAML.parse(raw);
+    return YAML.parse(raw);
   } catch {
-    return 'review';
+    return undefined;
   }
+}
+
+export async function readWorkspaceHealPolicy(workspace: string): Promise<HealPolicy> {
+  const doc = await readWorkspaceConfigDoc(workspace);
+  if (doc === undefined) return 'review';
   const parsed = healPolicySchema.safeParse(doc);
   if (!parsed.success) {
     throw new Error(`Invalid healPolicy in ${path.join(workspace, CONFIG_FILE_NAME)}: must be "review" or "auto"`);
   }
   return parsed.data.healPolicy ?? 'review';
+}
+
+export async function readWorkspaceBaseUrl(workspace: string): Promise<string | undefined> {
+  const doc = await readWorkspaceConfigDoc(workspace);
+  if (doc === undefined) return undefined;
+  const parsed = baseUrlSchema.safeParse(doc);
+  if (!parsed.success) {
+    throw new Error(`Invalid baseUrl in ${path.join(workspace, CONFIG_FILE_NAME)}: must be a string`);
+  }
+  const { baseUrl } = parsed.data;
+  if (baseUrl === undefined) return undefined;
+  if (!isAbsoluteHttpUrl(baseUrl)) {
+    throw new Error(
+      `Invalid baseUrl in ${path.join(workspace, CONFIG_FILE_NAME)}: must be an absolute http(s) URL, got "${baseUrl}"`,
+    );
+  }
+  return baseUrl;
 }

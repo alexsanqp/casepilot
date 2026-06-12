@@ -26,6 +26,7 @@ export interface StartRunParams {
   healPolicy?: HealPolicy;
   optimizeVideo?: boolean;
   videoPadMs?: number;
+  baseUrl?: string;
 }
 
 export class RunService {
@@ -60,6 +61,7 @@ export class RunService {
         healPolicy: params.healPolicy,
         optimizeVideo: params.optimizeVideo,
         videoPadMs: params.videoPadMs,
+        baseUrl: params.baseUrl,
         runDir,
       },
       this.deps,

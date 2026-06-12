@@ -10,6 +10,7 @@ export interface RunOptionsValue {
   viewport: string;
   customViewport: string;
   healPolicy: HealPolicy;
+  baseUrl: string;
 }
 
 export const defaultRunOptions: RunOptionsValue = {
@@ -19,6 +20,7 @@ export const defaultRunOptions: RunOptionsValue = {
   viewport: VIEWPORT_PRESETS[0],
   customViewport: '',
   healPolicy: 'review',
+  baseUrl: '',
 };
 
 function parseViewport(value: string): Viewport | undefined {
@@ -33,15 +35,17 @@ function parseViewport(value: string): Viewport | undefined {
 export function runOptionsToRequest(
   options: RunOptionsValue,
   mode: RunMode,
-): Pick<StartRunRequest, 'video' | 'optimizeVideo' | 'screenshots' | 'viewport' | 'healPolicy'> {
+): Pick<StartRunRequest, 'video' | 'optimizeVideo' | 'screenshots' | 'viewport' | 'healPolicy' | 'baseUrl'> {
   const raw = options.viewport === CUSTOM ? options.customViewport : options.viewport;
   const viewport = parseViewport(raw);
+  const baseUrl = options.baseUrl.trim();
   return {
     video: options.video,
     optimizeVideo: options.video && options.optimizeVideo,
     screenshots: options.screenshots,
     ...(viewport ? { viewport } : {}),
     ...(mode === 'replay' ? { healPolicy: options.healPolicy } : {}),
+    ...(baseUrl ? { baseUrl } : {}),
   };
 }
 
@@ -115,6 +119,16 @@ export function RunOptions({
             />
           </label>
         )}
+        <label className="field" title="Target base URL; relative case urls resolve against it (default: workspace baseUrl)">
+          <span>Base URL</span>
+          <input
+            className="input"
+            value={value.baseUrl}
+            placeholder="workspace default"
+            disabled={disabled}
+            onChange={(e) => set({ baseUrl: e.target.value })}
+          />
+        </label>
         <label className="field">
           <span>Heal policy (replay)</span>
           <select

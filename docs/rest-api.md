@@ -76,10 +76,10 @@ Starts a run asynchronously.
 Request:
 
 ```json
-{ "case": "login", "mode": "record", "provider": "claude-code", "video": true, "headed": false }
+{ "case": "login", "mode": "record", "provider": "claude-code", "video": true, "headed": false, "baseUrl": "https://staging.example.com" }
 ```
 
-`mode` is `"record"` or `"replay"`; `provider`, `video`, `headed` are optional. Responses: `202 {"runId": "20260611-142233-a1b2c3"}` on accept; `404` when the case (or, for replay, the replay file) is missing; `400` for a malformed body.
+`mode` is `"record"` or `"replay"`; `provider`, `video`, `headed`, `baseUrl` are optional. `baseUrl` must be an absolute http(s) URL; relative case urls resolve against it, and it takes precedence over the workspace `baseUrl:` in `casepilot.config.yaml`. Responses: `202 {"runId": "20260611-142233-a1b2c3"}` on accept; `404` when the case (or, for replay, the replay file) is missing; `400` for a malformed body.
 
 This is the only way to record through an **agent** provider (the server spawns the CLI and the MCP bridge).
 

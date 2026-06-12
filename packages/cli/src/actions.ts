@@ -17,6 +17,7 @@ import {
   type RunSummary,
 } from '@casepilot/server/runner';
 import { initWorkspace } from './init.js';
+import { resolveBaseUrl } from './options.js';
 import { formatHealDiff, formatHealList, formatRunResult, formatRunSummaries } from './format.js';
 import { startHeartbeat } from './heartbeat.js';
 import { formatTranscript } from './transcript.js';
@@ -73,7 +74,7 @@ export function createActions(io: CliIo = consoleIo): CliActions {
       io.out('  3. casepilot run example');
     },
 
-    async record({ workspace, caseName, provider, video, headed, screenshots, viewport, optimizeVideo, videoPadMs }) {
+    async record({ workspace, caseName, provider, video, headed, screenshots, viewport, optimizeVideo, videoPadMs, baseUrl }) {
       const ws = path.resolve(workspace);
       const runId = newRunId();
       const runDir = runDirPath(ws, runId);
@@ -92,6 +93,7 @@ export function createActions(io: CliIo = consoleIo): CliActions {
           viewport,
           optimizeVideo,
           videoPadMs,
+          baseUrl: resolveBaseUrl(baseUrl),
           runDir,
         });
       } finally {
@@ -105,7 +107,7 @@ export function createActions(io: CliIo = consoleIo): CliActions {
       process.exitCode = result.verdict === 'passed' ? 0 : 1;
     },
 
-    async run({ workspace, caseName, video, headed, heal, healPolicy, screenshots, viewport, optimizeVideo, videoPadMs }) {
+    async run({ workspace, caseName, video, headed, heal, healPolicy, screenshots, viewport, optimizeVideo, videoPadMs, baseUrl }) {
       const ws = path.resolve(workspace);
       const runId = newRunId();
       const runDir = runDirPath(ws, runId);
@@ -125,6 +127,7 @@ export function createActions(io: CliIo = consoleIo): CliActions {
           viewport,
           optimizeVideo,
           videoPadMs,
+          baseUrl: resolveBaseUrl(baseUrl),
           runDir,
         });
       } finally {

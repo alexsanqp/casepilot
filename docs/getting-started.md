@@ -28,6 +28,8 @@ This creates:
 
 All CLI commands accept `--workspace <dir>`; the default is the current directory.
 
+Optionally add a top-level `baseUrl: https://your-app.example.com` to `casepilot.config.yaml`: it becomes the default target base URL for every run in the workspace, letting cases use relative urls like `/login` (override per run with `--base-url` or `CASEPILOT_BASE_URL`).
+
 ## Configure a provider
 
 Edit `casepilot.config.yaml`. Minimal local example with LM Studio:

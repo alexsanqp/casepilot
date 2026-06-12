@@ -87,6 +87,7 @@ export interface StartRunRequest {
   healPolicy?: HealPolicy;
   optimizeVideo?: boolean;
   videoPadMs?: number;
+  baseUrl?: string;
 }
 
 export interface StartRunResponse {

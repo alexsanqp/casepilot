@@ -45,10 +45,40 @@ interface RawElement {
   css: string;
 }
 
+function hasScheme(url: string): boolean {
+  return /^[a-z][a-z0-9+.-]*:/i.test(url);
+}
+
 export function resolveUrl(target: string, baseUrl?: string): string {
-  if (/^[a-z][a-z0-9+.-]*:/i.test(target)) return target;
+  if (hasScheme(target)) return target;
   if (!baseUrl) return target;
   return new URL(target, baseUrl).toString();
+}
+
+/**
+ * Keeps replays of relative-url cases portable: an absolute goto target that
+ * lands on the same origin the case url resolves to is stored as a relative
+ * path. Absolute-url cases and cross-origin targets are left untouched.
+ */
+export function relativizeGotoTarget(target: string, caseUrl: string, baseUrl?: string): string {
+  if (hasScheme(caseUrl) || !hasScheme(target)) return target;
+  let base: URL;
+  let absolute: URL;
+  try {
+    base = new URL(resolveUrl(caseUrl, baseUrl));
+    absolute = new URL(target);
+  } catch {
+    return target;
+  }
+  return absolute.origin === base.origin ? `${absolute.pathname}${absolute.search}${absolute.hash}` : target;
+}
+
+/** Applies relativizeGotoTarget to whichever field carries the goto url. */
+export function relativizeGotoStep(step: ActStep, caseUrl: string, baseUrl?: string): ActStep {
+  if (step.action !== 'goto') return step;
+  if (step.value !== undefined) return { ...step, value: relativizeGotoTarget(step.value, caseUrl, baseUrl) };
+  if (step.selector !== undefined) return { ...step, selector: relativizeGotoTarget(step.selector, caseUrl, baseUrl) };
+  return step;
 }
 
 function errorMessage(err: unknown): string {

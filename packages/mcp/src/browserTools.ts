@@ -4,7 +4,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
-import { BrowserSession, loadCaseFile, optimizeVideo, resolveUrl, saveReplayFile } from '@casepilot/core';
+import { BrowserSession, loadCaseFile, optimizeVideo, relativizeGotoStep, resolveUrl, saveReplayFile } from '@casepilot/core';
 import type { ActStep, AssertStep, RunOptions, RunResult } from '@casepilot/core';
 import { actInputShape, assertInputShape, toActStep, toAssertStep } from './steps.js';
 import { createRecordingState, finalizeRecording, recordStepOutcome } from './recording.js';
@@ -161,7 +161,7 @@ export async function createBrowserToolsServer(options: BrowserToolsOptions): Pr
       let step: ActStep;
       try {
         session = await ensureSession();
-        step = session.resolveStep(toActStep(args));
+        step = relativizeGotoStep(session.resolveStep(toActStep(args)), caseSpec.url, options.baseUrl);
       } catch (err) {
         return text(`error: ${errorMessage(err)}`);
       }

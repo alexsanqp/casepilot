@@ -343,3 +343,89 @@ describe('executeRun heal policy', () => {
     expect(replayCase).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('executeRun baseUrl', () => {
+  function agentDeps(onArgs: (args: string[]) => void, runDir: string): RunnerDeps {
+    const agentProvider = {
+      kind: 'agent' as const,
+      id: 'fake-agent',
+      runTask: vi.fn(async ({ mcp }: { mcp: { args: string[] } }) => {
+        onArgs(mcp.args);
+        await writeFile(path.join(runDir, 'result.json'), JSON.stringify(passedResult('record')), 'utf8');
+        return { transcript: 't' };
+      }),
+    };
+    const agentRegistry: ProviderRegistryLike = {
+      get: () => agentProvider,
+      list: () => [{ id: 'fake-agent', kind: 'agent', type: 'fake' }],
+      default: () => agentProvider,
+    };
+    return {
+      engine: { recordCase: vi.fn(), replayCase: vi.fn() },
+      loadRegistry: async () => agentRegistry,
+      resolveMcpBin: () => 'C:/fake/mcp/bin.js',
+    };
+  }
+
+  it('reads the workspace config baseUrl into RunOptions for record and replay', async () => {
+    const { workspace, runDir } = await setupReplayWorkspace();
+    await writeFile(path.join(workspace, CONFIG_FILE_NAME), 'providers: []\nbaseUrl: https://cfg.example.com\n', 'utf8');
+    const replayCase = vi.fn(async (_replay: ReplayFile, options: RunOptions) => {
+      expect(options.baseUrl).toBe('https://cfg.example.com');
+      return passedResult('replay');
+    });
+    const deps: RunnerDeps = {
+      engine: { recordCase: vi.fn(), replayCase },
+      loadRegistry: async () => registry,
+      resolveMcpBin: () => 'C:/fake/mcp/bin.js',
+    };
+
+    await executeRun({ workspace, caseName: 'login', mode: 'replay', runDir }, deps);
+    expect(replayCase).toHaveBeenCalledTimes(1);
+  });
+
+  it('request baseUrl takes precedence over the workspace config', async () => {
+    const { workspace, runDir } = await setupWorkspace();
+    await writeFile(path.join(workspace, CONFIG_FILE_NAME), 'providers: []\nbaseUrl: https://cfg.example.com\n', 'utf8');
+    const recordCase = vi.fn(async (_spec, _provider, options: RunOptions) => {
+      expect(options.baseUrl).toBe('https://req.example.com');
+      return { result: passedResult('record'), replay: makeReplayFile() };
+    });
+    const deps: RunnerDeps = {
+      engine: { recordCase, replayCase: vi.fn() },
+      loadRegistry: async () => registry,
+      resolveMcpBin: () => 'C:/fake/mcp/bin.js',
+    };
+
+    await executeRun(
+      { workspace, caseName: 'login', mode: 'record', baseUrl: 'https://req.example.com', runDir },
+      deps,
+    );
+    expect(recordCase).toHaveBeenCalledTimes(1);
+  });
+
+  it('forwards the effective baseUrl to the browser-tools bridge as --base-url', async () => {
+    const { workspace, runDir } = await setupWorkspace();
+    await writeFile(path.join(workspace, CONFIG_FILE_NAME), 'providers: []\nbaseUrl: https://cfg.example.com\n', 'utf8');
+    let capturedArgs: string[] = [];
+    const deps = agentDeps((args) => {
+      capturedArgs = args;
+    }, runDir);
+
+    await executeRun({ workspace, caseName: 'login', mode: 'record', runDir }, deps);
+    expect(capturedArgs.slice(capturedArgs.indexOf('--base-url'))).toEqual(
+      expect.arrayContaining(['--base-url', 'https://cfg.example.com']),
+    );
+  });
+
+  it('omits --base-url when no baseUrl is configured or requested', async () => {
+    const { workspace, runDir } = await setupWorkspace();
+    let capturedArgs: string[] = [];
+    const deps = agentDeps((args) => {
+      capturedArgs = args;
+    }, runDir);
+
+    await executeRun({ workspace, caseName: 'login', mode: 'record', runDir }, deps);
+    expect(capturedArgs).not.toContain('--base-url');
+  });
+});

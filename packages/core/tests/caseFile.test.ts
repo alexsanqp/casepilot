@@ -2,7 +2,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { loadCaseFile, loadReplayFile, parseReplayFile, saveCaseFile, saveReplayFile } from '../src/caseFile.js';
+import { loadCaseFile, loadReplayFile, parseCaseSpec, parseReplayFile, saveCaseFile, saveReplayFile } from '../src/caseFile.js';
 import type { ReplayFile } from '../src/types.js';
 
 let dir: string;
@@ -49,6 +49,18 @@ describe('case files', () => {
     await saveCaseFile(filePath, spec);
     expect(await loadCaseFile(filePath)).toEqual(spec);
   });
+
+  it('accepts a relative url starting with "/"', () => {
+    for (const url of ['/', '/p/x/cases', '/login?next=%2Fhome#top']) {
+      expect(parseCaseSpec({ name: 'rel', url, steps: ['s'], expect: ['e'] }).url).toBe(url);
+    }
+  });
+
+  it('rejects urls that are neither absolute nor leading-slash relative', () => {
+    for (const url of ['', 'login', 'p/x/cases', 'example.com/login', 'http://']) {
+      expect(() => parseCaseSpec({ name: 'bad', url, steps: ['s'], expect: ['e'] })).toThrow(/url/);
+    }
+  });
 });
 
 describe('replay files', () => {
@@ -77,5 +89,10 @@ describe('replay files', () => {
 
   it('rejects malformed steps', () => {
     expect(() => parseReplayFile({ ...replay, steps: [{ kind: 'act', action: 'teleport' }] })).toThrow(/steps\.0/);
+  });
+
+  it('accepts a relative url so recorded cases stay host-portable', () => {
+    expect(parseReplayFile({ ...replay, url: '/profile' }).url).toBe('/profile');
+    expect(() => parseReplayFile({ ...replay, url: 'profile' })).toThrow(/url/);
   });
 });

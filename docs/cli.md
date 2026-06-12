@@ -24,9 +24,11 @@ Record a case with an AI provider into a deterministic replay. `<case>` refers t
 | `--provider <id>` | provider id from `casepilot.config.yaml` (default: `defaultProvider`) |
 | `--video` | record a video of the run |
 | `--headed` | run with a visible browser |
+| `--base-url <url>` | absolute http(s) base URL relative case urls resolve against |
 
 ```bash
 casepilot record login --provider claude-code --video
+casepilot record login --base-url https://staging.example.com
 ```
 
 ## casepilot run \<case\>
@@ -38,6 +40,7 @@ Replay a recorded case (`cases/<case>.replay.json`). No LLM cost unless healing 
 | `--video` | record a video of the run |
 | `--headed` | run with a visible browser |
 | `--no-heal` | disable AI healing of failed steps |
+| `--base-url <url>` | absolute http(s) base URL relative case urls resolve against |
 
 Healing picks a chat provider automatically: the default provider if it is a chat provider, otherwise the first configured chat provider; with none available, the run simply fails on the broken step.
 
@@ -45,6 +48,10 @@ Healing picks a chat provider automatically: the default provider if it is a cha
 casepilot run login
 casepilot run login --no-heal --video
 ```
+
+### Base URL precedence
+
+For `record` and `run`, the effective base URL is resolved as: `--base-url` flag > `CASEPILOT_BASE_URL` environment variable > `baseUrl:` key in `casepilot.config.yaml` > none. Both the flag and the env var must be absolute http(s) URLs.
 
 ## casepilot export \<case\>
 

@@ -13,6 +13,7 @@ import {
   isSafeName,
   listCases,
 } from './workspace.js';
+import { isAbsoluteHttpUrl } from './workspaceConfig.js';
 import type { ProviderRegistryLike } from './providersLoader.js';
 import type { ProjectManager } from './projectManager.js';
 import type { ResolveContext } from './routeContext.js';
@@ -41,6 +42,10 @@ const postRunBodySchema = z.object({
   healPolicy: z.enum(['review', 'auto']).optional(),
   optimizeVideo: z.boolean().optional(),
   videoPadMs: z.number().int().positive().optional(),
+  baseUrl: z
+    .string()
+    .refine(isAbsoluteHttpUrl, { message: 'baseUrl must be an absolute http(s) URL' })
+    .optional(),
 });
 
 const postProjectBodySchema = z.object({
@@ -146,7 +151,7 @@ function registerProjectScopedRoutes(app: FastifyInstance, deps: ApiDeps, base: 
     if (!body.success) {
       return reply.status(400).send({
         error:
-          'body must be {case, mode: "record"|"replay", provider?, video?, headed?, screenshots?, viewport?: {width, height}, healPolicy?: "review"|"auto", optimizeVideo?, videoPadMs?}',
+          'body must be {case, mode: "record"|"replay", provider?, video?, headed?, screenshots?, viewport?: {width, height}, healPolicy?: "review"|"auto", optimizeVideo?, videoPadMs?, baseUrl?: absolute http(s) URL}',
       });
     }
     const {
@@ -160,6 +165,7 @@ function registerProjectScopedRoutes(app: FastifyInstance, deps: ApiDeps, base: 
       healPolicy,
       optimizeVideo,
       videoPadMs,
+      baseUrl,
     } = body.data;
     if (!isSafeName(caseName)) return reply.status(400).send({ error: `invalid case name "${caseName}"` });
     if (!(await fileExists(caseFilePath(ctx.workspace, caseName)))) {
@@ -179,6 +185,7 @@ function registerProjectScopedRoutes(app: FastifyInstance, deps: ApiDeps, base: 
       healPolicy,
       optimizeVideo,
       videoPadMs,
+      baseUrl,
     });
     return reply.status(202).send({ runId });
   });

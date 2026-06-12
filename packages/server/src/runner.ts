@@ -14,7 +14,7 @@ import type {
 } from '@casepilot/core';
 import { buildHealer } from './healer.js';
 import { addHeal } from './heals.js';
-import { readWorkspaceHealPolicy, type HealPolicy } from './workspaceConfig.js';
+import { readWorkspaceBaseUrl, readWorkspaceHealPolicy, type HealPolicy } from './workspaceConfig.js';
 import { loadWorkspaceRegistry, type ProviderRegistryLike } from './providersLoader.js';
 import { assertCaseName, caseFilePath, caseReplayPath, fileExists } from './workspace.js';
 
@@ -33,6 +33,8 @@ export interface RunRequest {
   viewport?: { width: number; height: number };
   optimizeVideo?: boolean;
   videoPadMs?: number;
+  /** Target base URL; overrides the workspace config baseUrl. */
+  baseUrl?: string;
   runDir: string;
 }
 
@@ -114,6 +116,7 @@ async function recordViaAgent(
   spec: CaseSpec,
   provider: AgentProvider,
   deps: RunnerDeps,
+  baseUrl?: string,
 ): Promise<RunResult> {
   const mcpArgs = [
     deps.resolveMcpBin(),
@@ -129,6 +132,7 @@ async function recordViaAgent(
   if (req.viewport) mcpArgs.push('--viewport', `${req.viewport.width}x${req.viewport.height}`);
   if (req.optimizeVideo) mcpArgs.push('--optimize-video');
   if (req.videoPadMs !== undefined) mcpArgs.push('--video-pad', String(req.videoPadMs));
+  if (baseUrl) mcpArgs.push('--base-url', baseUrl);
 
   const transcriptPath = path.join(req.runDir, 'transcript.txt');
   let transcript: string;
@@ -214,6 +218,7 @@ async function buildReplayHooks(req: RunRequest): Promise<ReplayHooks> {
 export async function executeRun(req: RunRequest, deps: RunnerDeps = defaultRunnerDeps()): Promise<RunResult> {
   assertCaseName(req.caseName);
   await mkdir(req.runDir, { recursive: true });
+  const baseUrl = req.baseUrl ?? (await readWorkspaceBaseUrl(req.workspace));
   const options: RunOptions = {
     headless: !req.headed,
     video: !!req.video,
@@ -222,6 +227,7 @@ export async function executeRun(req: RunRequest, deps: RunnerDeps = defaultRunn
     stepScreenshots: req.screenshots,
     optimizeVideo: req.optimizeVideo,
     videoPadMs: req.videoPadMs,
+    baseUrl,
   };
   const startedAt = new Date().toISOString();
 
@@ -242,7 +248,7 @@ export async function executeRun(req: RunRequest, deps: RunnerDeps = defaultRunn
           await saveReplayFile(caseReplayPath(req.workspace, req.caseName), recorded.replay);
         }
       } else {
-        result = await recordViaAgent(req, spec, provider, deps);
+        result = await recordViaAgent(req, spec, provider, deps, baseUrl);
       }
     }
   } catch (err) {
@@ -277,6 +283,6 @@ export { addHeal, listHeals, loadHeals, healsFilePath, resolveHeal } from './hea
 export type { HealRecord, HealStatus, HealsFile, HealInput } from './heals.js';
 export { approveHeal, rejectHeal } from './healApproval.js';
 export type { ApprovalOutcome, ApprovalFailure } from './healApproval.js';
-export { readWorkspaceHealPolicy } from './workspaceConfig.js';
+export { readWorkspaceBaseUrl, readWorkspaceHealPolicy } from './workspaceConfig.js';
 export type { HealPolicy } from './workspaceConfig.js';
 export type { ProviderRegistryLike, ProviderSummary } from './providersLoader.js';

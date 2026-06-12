@@ -53,6 +53,7 @@ describe('casepilot CLI parsing', () => {
       viewport: undefined,
       optimizeVideo: false,
       videoPadMs: undefined,
+      baseUrl: undefined,
     });
   });
 
@@ -69,6 +70,7 @@ describe('casepilot CLI parsing', () => {
       viewport: undefined,
       optimizeVideo: false,
       videoPadMs: undefined,
+      baseUrl: undefined,
     });
   });
 
@@ -106,6 +108,7 @@ describe('casepilot CLI parsing', () => {
       viewport: undefined,
       optimizeVideo: false,
       videoPadMs: undefined,
+      baseUrl: undefined,
     });
   });
 
@@ -123,6 +126,7 @@ describe('casepilot CLI parsing', () => {
       viewport: undefined,
       optimizeVideo: false,
       videoPadMs: undefined,
+      baseUrl: undefined,
     });
   });
 
@@ -166,6 +170,22 @@ describe('casepilot CLI parsing', () => {
     const actions = stubActions();
     await expect(parse(actions, ['run', 'login', '--heal-policy', 'yolo'])).rejects.toThrow();
     expect(actions.run).not.toHaveBeenCalled();
+  });
+
+  it('parses record and run --base-url', async () => {
+    const actions = stubActions();
+    await parse(actions, ['record', 'login', '--base-url', 'https://staging.example.com']);
+    expect(actions.record).toHaveBeenCalledWith(expect.objectContaining({ baseUrl: 'https://staging.example.com' }));
+    await parse(actions, ['run', 'login', '--base-url', 'http://127.0.0.1:7701']);
+    expect(actions.run).toHaveBeenCalledWith(expect.objectContaining({ baseUrl: 'http://127.0.0.1:7701' }));
+  });
+
+  it('rejects a non-http(s) --base-url', async () => {
+    const actions = stubActions();
+    await expect(parse(actions, ['run', 'login', '--base-url', 'staging.example.com'])).rejects.toThrow();
+    await expect(parse(actions, ['record', 'login', '--base-url', 'ftp://example.com'])).rejects.toThrow();
+    expect(actions.run).not.toHaveBeenCalled();
+    expect(actions.record).not.toHaveBeenCalled();
   });
 
   it('parses export with -o', async () => {

@@ -1,5 +1,8 @@
 import { Command } from 'commander';
-import { parseHealPolicy, parseVideoPad, parseViewport, type Viewport } from './options.js';
+import { parseBaseUrl, parseHealPolicy, parseVideoPad, parseViewport, type Viewport } from './options.js';
+
+const BASE_URL_HELP =
+  'target base URL relative case urls resolve against (overrides CASEPILOT_BASE_URL and the workspace baseUrl)';
 
 export interface CliActions {
   init(opts: { workspace: string }): Promise<void>;
@@ -13,6 +16,7 @@ export interface CliActions {
     viewport?: Viewport;
     optimizeVideo: boolean;
     videoPadMs?: number;
+    baseUrl?: string;
   }): Promise<void>;
   run(opts: {
     workspace: string;
@@ -25,6 +29,7 @@ export interface CliActions {
     viewport?: Viewport;
     optimizeVideo: boolean;
     videoPadMs?: number;
+    baseUrl?: string;
   }): Promise<void>;
   export(opts: { workspace: string; caseName: string; out?: string }): Promise<void>;
   runs(opts: { workspace: string; server?: string }): Promise<void>;
@@ -68,6 +73,7 @@ export function createProgram(actions: CliActions): Command {
     .option('--viewport <WxH>', 'browser viewport, e.g. 1920x1080', parseViewport)
     .option('--optimize-video', 'also write an idle-trimmed copy of the run video')
     .option('--video-pad <ms>', 'padding kept around each step when trimming idle video time', parseVideoPad)
+    .option('--base-url <url>', BASE_URL_HELP, parseBaseUrl)
     .action(
       async (
         caseName: string,
@@ -79,6 +85,7 @@ export function createProgram(actions: CliActions): Command {
           viewport?: Viewport;
           optimizeVideo?: boolean;
           videoPad?: number;
+          baseUrl?: string;
         },
       ) => {
         await actions.record({
@@ -91,6 +98,7 @@ export function createProgram(actions: CliActions): Command {
           viewport: opts.viewport,
           optimizeVideo: !!opts.optimizeVideo,
           videoPadMs: opts.videoPad,
+          baseUrl: opts.baseUrl,
         });
       },
     );
@@ -107,6 +115,7 @@ export function createProgram(actions: CliActions): Command {
     .option('--viewport <WxH>', 'browser viewport, e.g. 1920x1080', parseViewport)
     .option('--optimize-video', 'also write an idle-trimmed copy of the run video')
     .option('--video-pad <ms>', 'padding kept around each step when trimming idle video time', parseVideoPad)
+    .option('--base-url <url>', BASE_URL_HELP, parseBaseUrl)
     .action(
       async (
         caseName: string,
@@ -119,6 +128,7 @@ export function createProgram(actions: CliActions): Command {
           viewport?: Viewport;
           optimizeVideo?: boolean;
           videoPad?: number;
+          baseUrl?: string;
         },
       ) => {
         await actions.run({
@@ -132,6 +142,7 @@ export function createProgram(actions: CliActions): Command {
           viewport: opts.viewport,
           optimizeVideo: !!opts.optimizeVideo,
           videoPadMs: opts.videoPad,
+          baseUrl: opts.baseUrl,
         });
       },
     );

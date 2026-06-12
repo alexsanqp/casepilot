@@ -20,6 +20,18 @@ Case names used by the CLI/API must match `[A-Za-z0-9][A-Za-z0-9._-]{0,127}`.
 
 `steps` tell the recording LLM what to do; `expect` tells it what to verify with `assert` tool calls. Be specific about visible labels ("the Sign in button") because element lookup is driven by accessible names.
 
+### Relative urls and baseUrl
+
+`url` may be either an absolute URL (`https://shop.example.com/cart`) or a relative path starting with `/` (`/cart`). Anything else (empty string, `cart`, `shop.example.com/cart`) is rejected.
+
+A relative url is resolved against a **base URL** at navigation time, so the same case runs against any host. The base URL comes from, in order of precedence:
+
+1. `--base-url` CLI flag / `baseUrl` field in the `POST .../runs` body
+2. `CASEPILOT_BASE_URL` environment variable (CLI only)
+3. `baseUrl:` top-level key in `casepilot.config.yaml` (must be an absolute http(s) URL)
+
+With no base URL configured, a relative-url case cannot navigate; absolute urls always work as-is.
+
 ## replay.json
 
 A passing recording writes `cases/<name>.replay.json`:
@@ -45,6 +57,7 @@ Notes:
 
 - `providerUsed` is the provider id for chat recordings, or the literal `"agent"` when an agent CLI recorded through the browser-tools bridge.
 - Only steps that **succeeded** during recording are stored; failed attempts never enter the replay.
+- `url` stores the case url verbatim, so a relative case url stays relative in the replay and resolves against the effective base URL on every run. `goto` targets recorded against a relative-url case are re-relativized when they land on the same origin the case url resolved to; cross-origin targets are kept absolute.
 - `meta.healCount` increments every time the healer rewrites a step; the healed replay is saved back to disk.
 
 ### Step kinds

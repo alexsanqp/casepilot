@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseHealPolicy, parseVideoPad, parseViewport } from '../src/options.js';
+import { parseBaseUrl, parseHealPolicy, parseVideoPad, parseViewport, resolveBaseUrl } from '../src/options.js';
 
 describe('parseViewport', () => {
   it('parses WxH strings', () => {
@@ -45,5 +45,41 @@ describe('parseHealPolicy', () => {
 
   it('rejects anything else', () => {
     expect(() => parseHealPolicy('yolo')).toThrow(/review.*auto/);
+  });
+});
+
+describe('parseBaseUrl', () => {
+  it('accepts absolute http(s) URLs', () => {
+    expect(parseBaseUrl('https://staging.example.com')).toBe('https://staging.example.com');
+    expect(parseBaseUrl('http://127.0.0.1:7701/app')).toBe('http://127.0.0.1:7701/app');
+  });
+
+  it('rejects relative paths and non-http schemes', () => {
+    for (const bad of ['/login', 'staging.example.com', 'ftp://example.com', 'file:///tmp/app.html', '']) {
+      expect(() => parseBaseUrl(bad)).toThrow(/absolute http\(s\) URL/);
+    }
+  });
+});
+
+describe('resolveBaseUrl', () => {
+  it('prefers the --base-url flag over the env var', () => {
+    expect(resolveBaseUrl('https://flag.example.com', { CASEPILOT_BASE_URL: 'https://env.example.com' })).toBe(
+      'https://flag.example.com',
+    );
+  });
+
+  it('falls back to CASEPILOT_BASE_URL when no flag is given', () => {
+    expect(resolveBaseUrl(undefined, { CASEPILOT_BASE_URL: 'https://env.example.com' })).toBe(
+      'https://env.example.com',
+    );
+  });
+
+  it('returns undefined with neither flag nor env var (workspace config decides later)', () => {
+    expect(resolveBaseUrl(undefined, {})).toBeUndefined();
+    expect(resolveBaseUrl(undefined, { CASEPILOT_BASE_URL: '' })).toBeUndefined();
+  });
+
+  it('rejects an invalid CASEPILOT_BASE_URL', () => {
+    expect(() => resolveBaseUrl(undefined, { CASEPILOT_BASE_URL: 'not a url' })).toThrow(/CASEPILOT_BASE_URL/);
   });
 });

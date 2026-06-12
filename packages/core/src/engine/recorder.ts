@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { BrowserSession } from '../browser/session.js';
+import { BrowserSession, relativizeGotoStep } from '../browser/session.js';
 import { saveReplayFile } from '../caseFile.js';
 import { captureStepScreenshotIfNeeded } from './stepScreenshots.js';
 import { collapseStepResults, validateFinalOutcomes } from './outcomes.js';
@@ -195,7 +195,7 @@ export async function recordCase(
         case 'act': {
           let step: ActStep;
           try {
-            step = session.resolveStep(parseActStep(call.arguments));
+            step = relativizeGotoStep(session.resolveStep(parseActStep(call.arguments)), caseSpec.url, options.baseUrl);
           } catch (err) {
             return { output: `error: ${errorMessage(err)}`, done: false };
           }

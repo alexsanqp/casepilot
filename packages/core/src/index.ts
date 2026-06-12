@@ -1,5 +1,5 @@
 export * from './types.js';
-export { BrowserSession, resolveUrl } from './browser/session.js';
+export { BrowserSession, resolveUrl, relativizeGotoTarget, relativizeGotoStep } from './browser/session.js';
 export { scoreElement, rankElements, tokenize, type ScorableElement } from './browser/scoring.js';
 export { recordCase, RECORDER_TOOLS } from './engine/recorder.js';
 export { replayCase } from './engine/replayer.js';

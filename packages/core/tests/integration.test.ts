@@ -1,4 +1,6 @@
-import { access, mkdtemp, rm, stat } from 'node:fs/promises';
+import { access, mkdtemp, readFile, rm, stat } from 'node:fs/promises';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -290,6 +292,59 @@ describe('step timing offsets and screenshots', () => {
     expect(result.artifacts.screenshots).toEqual(['step-000.png', 'step-001.png']);
     for (const name of result.artifacts.screenshots) {
       await expect(access(path.join(artifactsDir, 'screenshots', name))).resolves.toBeUndefined();
+    }
+  });
+});
+
+describe('relative case url portability', () => {
+  it('record resolves against baseUrl, stores the relative url, and re-relativizes same-origin gotos', async () => {
+    const html = await readFile(new URL('./fixtures/app.html', import.meta.url), 'utf8');
+    const server = createServer((_req, res) => {
+      res.writeHead(200, { 'content-type': 'text/html' });
+      res.end(html);
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address() as AddressInfo;
+    const baseUrl = `http://127.0.0.1:${port}`;
+
+    const relativeCase: CaseSpec = {
+      name: 'Relative url case',
+      url: '/app',
+      steps: ['Open the other page'],
+      expect: ['The Profile settings heading is visible'],
+    };
+    const provider = new FakeChatProvider([
+      () => ({
+        toolCalls: [
+          { name: 'act', arguments: { action: 'goto', value: `${baseUrl}/other`, note: 'Open the other page' } },
+        ],
+      }),
+      () => ({
+        toolCalls: [
+          { name: 'assert', arguments: { assert: 'visible', selector: 'role=heading[name="Profile settings"]' } },
+        ],
+      }),
+      () => ({
+        toolCalls: [{ name: 'report_result', arguments: { passed: true, explanation: 'heading visible' } }],
+      }),
+    ]);
+
+    try {
+      const { result, replay } = await recordCase(relativeCase, provider, {
+        artifactsDir: dirFor('relative-record'),
+        baseUrl,
+      });
+      expect(result.verdict).toBe('passed');
+      expect(replay.url).toBe('/app');
+      expect(replay.steps[0]).toMatchObject({ kind: 'act', action: 'goto', value: '/other' });
+
+      const replayResult = await replayCase(structuredClone(replay), {
+        artifactsDir: dirFor('relative-replay'),
+        baseUrl,
+      });
+      expect(replayResult.verdict).toBe('passed');
+    } finally {
+      await new Promise<void>((resolve, reject) => server.close((err) => (err ? reject(err) : resolve())));
     }
   });
 });
