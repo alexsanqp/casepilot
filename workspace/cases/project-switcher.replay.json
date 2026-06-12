@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "case": "project-switcher",
+  "url": "/",
+  "providerUsed": "agent",
+  "recordedAt": "2026-06-12T13:31:12.704Z",
+  "steps": [
+    {
+      "kind": "act",
+      "action": "select",
+      "selector": "role=combobox[name=\"Switch project\"]",
+      "value": "demo-workspace",
+      "note": "Step 1: Select demo-workspace from the project switcher dropdown"
+    },
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "selector": "role=heading[name=\"Cases\"]",
+      "value": "5000",
+      "note": "Step 2: Wait for the Cases heading to appear"
+    },
+    {
+      "kind": "act",
+      "action": "select",
+      "selector": "role=combobox[name=\"Switch project\"]",
+      "value": "All projects",
+      "note": "Step 3: Select All projects from the project switcher dropdown"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=heading[name=\"Projects\"]",
+      "note": "Expectation 1: The page shows the Projects heading again"
+    },
+    {
+      "kind": "assert",
+      "assert": "absent",
+      "selector": "role=link[name=\"Cases\"]",
+      "note": "Expectation 2a: Cases navigation link is no longer shown"
+    },
+    {
+      "kind": "assert",
+      "assert": "absent",
+      "selector": "role=link[name=\"Runs\"]",
+      "note": "Expectation 2b: Runs navigation link is no longer shown"
+    },
+    {
+      "kind": "assert",
+      "assert": "absent",
+      "selector": "role=link[name=\"Heals\"]",
+      "note": "Expectation 2c: Heals navigation link is no longer shown"
+    }
+  ],
+  "meta": {
+    "healCount": 0
+  }
+}

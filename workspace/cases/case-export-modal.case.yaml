@@ -1,5 +1,5 @@
 name: case-export-modal
-url: http://localhost:7701/
+url: /
 steps:
   - Click the "demo-workspace" project name on its project card
   - Wait for the cases table to appear

@@ -1,3 +1,4 @@
+baseUrl: http://localhost:7701
 defaultProvider: claude-code
 providers:
   - id: claude-code

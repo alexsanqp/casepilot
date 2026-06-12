@@ -1,5 +1,5 @@
 name: case-editor-create-and-delete
-url: http://localhost:7701/
+url: /
 steps:
   - Click the "demo-workspace" project name on its project card
   - Click the "New case" button in the Cases page header

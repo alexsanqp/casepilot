@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "case": "navigation-sidebar",
+  "url": "/",
+  "providerUsed": "agent",
+  "recordedAt": "2026-06-12T12:58:46.087Z",
+  "steps": [
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "value": "1500",
+      "note": "Wait for projects to finish loading on the dashboard"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=link[name=\"demo-workspace\"]",
+      "note": "Step 1: Click the demo-workspace project name on its project card"
+    },
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "selector": "role=heading[name=\"Cases\"]",
+      "note": "Step 2: Wait for the Cases heading to appear"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=link[name=\"Runs\"]",
+      "note": "Step 3: Click the Runs link in the sidebar navigation"
+    },
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "selector": "role=heading[name=\"Runs\"]",
+      "note": "Step 4: Wait for the Runs heading to appear"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=link[name=\"Heals\"]",
+      "note": "Step 5: Click the Heals link in the sidebar navigation"
+    },
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "selector": "role=heading[name=\"Heals\"]",
+      "note": "Step 6: Wait for the Heals heading to appear"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=link[name=\"Cases\"]",
+      "note": "Step 7: Click the Cases link in the sidebar navigation"
+    },
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "selector": "role=heading[name=\"Cases\"]",
+      "note": "Wait for Cases heading after clicking Cases link"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=heading[name=\"Cases\"]",
+      "note": "Expectation 1: The page shows the Cases heading"
+    },
+    {
+      "kind": "assert",
+      "assert": "urlContains",
+      "text": "/cases",
+      "note": "Expectation 2: The page url contains /cases"
+    },
+    {
+      "kind": "assert",
+      "assert": "textPresent",
+      "selector": "role=complementary",
+      "text": "online · v0.1.0",
+      "note": "Expectation 3: The sidebar health indicator shows online with a version number"
+    }
+  ],
+  "meta": {
+    "healCount": 0
+  }
+}

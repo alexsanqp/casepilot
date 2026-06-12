@@ -1,5 +1,5 @@
 name: unknown-route
-url: http://localhost:7701/this-route-does-not-exist
+url: /this-route-does-not-exist
 steps:
   - Wait for the page content to finish loading
 expect:

@@ -1,5 +1,5 @@
 name: projects-list
-url: http://localhost:7701/
+url: /
 steps:
   - Wait for the "Projects" heading to appear
   - Find the project card named "demo-workspace" in the project grid

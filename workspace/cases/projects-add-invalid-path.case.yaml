@@ -1,5 +1,5 @@
 name: projects-add-invalid-path
-url: http://localhost:7701/
+url: /
 steps:
   - Scroll down to the "Add project" section
   - Type "bad-path-project" into the "Name" input of the add project form

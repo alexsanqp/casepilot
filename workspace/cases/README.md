@@ -8,29 +8,27 @@ Before recording or replaying these cases:
 
 1. **Server running** on port 7700: `casepilot serve` (serves all registered projects from `~/.casepilot/projects.json`).
 2. **Dashboard running** on port 7701: `npm run dev` inside `packages/dashboard` (or however the dev server is started in this repo).
-3. **Demo project registered** under the name `demo-workspace`:
-   `casepilot projects add ./demo-workspace --name demo-workspace`
-   The cases reference this project by name, plus its two bundled cases: `example` (no replay) and `sprset46-project-tag-limit` (recorded, has a replay).
+3. **Projects registered**: this workspace itself under the name `casepilot` (`casepilot projects add C:\DISK_D\Projects\casepilot\workspace --name casepilot`) and the demo project under the name `demo-workspace` (`casepilot projects add ./demo-workspace --name demo-workspace`). `cases-list` and `run-button-states` assert against the `casepilot` project's own cases page; most other cases reference `demo-workspace`.
 4. **At least one finished run** in the demo project, ideally one recorded with `--video --optimize-video --screenshots`, so the run-detail cases have something to open.
 5. For the heal cases: at least one **pending heal** in the demo project's queue (produced by a replay run with heal policy `review` where a step was healed).
 
 ## Recording and replaying
 
-This suite lives in its own workspace at `cases`. Treat the repo root as the workspace and pass it explicitly, or run `casepilot init` wherever you want these cases to live and copy them into that workspace's `cases/` directory.
+This suite lives in the dedicated workspace at `C:\DISK_D\Projects\casepilot\workspace` (config `casepilot.config.yaml`, cases in `cases/`, run history in `runs/`).
 
-Assuming a workspace whose `cases/` directory contains these files:
+Cases here use relative urls (`/`, `/this-route-does-not-exist`), so they are host-portable: at run time the url is resolved against a base URL taken from, in order of precedence, the `--base-url` CLI flag, the `CASEPILOT_BASE_URL` environment variable, or the top-level `baseUrl:` key in the workspace `casepilot.config.yaml`. This workspace's config sets `baseUrl: http://localhost:7701`.
 
 ```sh
 # Record one case with an AI provider (creates <name>.replay.json next to the YAML)
-casepilot --workspace <workspace> record projects-list --headed
+casepilot --workspace C:\DISK_D\Projects\casepilot\workspace record projects-list --headed
 
 # Replay it deterministically; exit code reflects the verdict
-casepilot --workspace <workspace> run projects-list
+casepilot --workspace C:\DISK_D\Projects\casepilot\workspace run projects-list
 
 # Useful extras
-casepilot --workspace <workspace> run projects-list --video --optimize-video --screenshots
-casepilot --workspace <workspace> runs            # list runs
-casepilot --workspace <workspace> report <runId>  # full run report
+casepilot --workspace C:\DISK_D\Projects\casepilot\workspace run projects-list --video --optimize-video --screenshots
+casepilot --workspace C:\DISK_D\Projects\casepilot\workspace runs            # list runs
+casepilot --workspace C:\DISK_D\Projects\casepilot\workspace report <runId>  # full run report
 ```
 
 ## Caveats

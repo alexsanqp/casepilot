@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "case": "projects-add-invalid-path",
+  "url": "/",
+  "providerUsed": "agent",
+  "recordedAt": "2026-06-12T13:32:11.786Z",
+  "steps": [
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "selector": "text=\"Add project\"",
+      "value": "5000",
+      "note": "Wait for page to load and Add project section to appear"
+    },
+    {
+      "kind": "act",
+      "action": "scroll",
+      "selector": "text=\"Add project\"",
+      "note": "Scroll down to the Add project section"
+    },
+    {
+      "kind": "act",
+      "action": "fill",
+      "selector": "role=textbox[name=\"Name\"]",
+      "value": "bad-path-project",
+      "note": "Type \"bad-path-project\" into the Name input"
+    },
+    {
+      "kind": "act",
+      "action": "fill",
+      "selector": "role=textbox[name=\"Absolute path Browse\"]",
+      "value": "C:\\definitely\\does\\not\\exist\\nowhere",
+      "note": "Type invalid path into the Absolute path input"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=button[name=\"Add project\"]",
+      "note": "Click the Add project button"
+    },
+    {
+      "kind": "assert",
+      "assert": "textPresent",
+      "text": "project path does not exist",
+      "note": "An error message is shown below the add project form"
+    },
+    {
+      "kind": "assert",
+      "assert": "absent",
+      "selector": "role=link[name=\"bad-path-project\"]",
+      "note": "No project card named \"bad-path-project\" appears in the project grid"
+    }
+  ],
+  "meta": {
+    "healCount": 0
+  }
+}

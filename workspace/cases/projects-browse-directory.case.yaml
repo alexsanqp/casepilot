@@ -1,5 +1,5 @@
 name: projects-browse-directory
-url: http://localhost:7701/
+url: /
 steps:
   - Scroll down to the "Add project" section
   - Click the "Browse" button next to the "Absolute path" input

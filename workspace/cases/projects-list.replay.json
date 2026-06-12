@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "case": "projects-list",
+  "url": "/",
+  "providerUsed": "agent",
+  "recordedAt": "2026-06-12T12:57:31.510Z",
+  "steps": [
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "value": "1500",
+      "note": "Wait for projects to finish loading"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=heading[name=\"Projects\"]",
+      "note": "Expectation 1: page shows a \"Projects\" heading"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=link[name=\"demo-workspace\"]",
+      "note": "Expectation 2: demo-workspace project card is visible"
+    },
+    {
+      "kind": "assert",
+      "assert": "textPresent",
+      "text": "C:\\DISK_D\\Projects\\casepilot\\demo-workspace",
+      "note": "Expectation 2: absolute path shown below the demo-workspace name"
+    },
+    {
+      "kind": "assert",
+      "assert": "textPresent",
+      "text": "cases",
+      "note": "Expectation 3: demo-workspace card shows a case count"
+    },
+    {
+      "kind": "assert",
+      "assert": "textPresent",
+      "text": "Last run:",
+      "note": "Expectation 3: demo-workspace card shows a \"Last run:\" line"
+    }
+  ],
+  "meta": {
+    "healCount": 0
+  }
+}

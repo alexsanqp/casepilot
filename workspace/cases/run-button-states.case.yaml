@@ -1,0 +1,11 @@
+name: run-button-states
+url: /
+steps:
+  - Click the "casepilot" project name on its project card
+  - Wait for the cases table to appear
+  - Hover over the disabled "Run" button in the row for the case "heal-approve"
+  - Hover over the enabled "Run" button in the row for the case "projects-list"
+expect:
+  - The "Run" button for "heal-approve" is disabled with the tooltip "No replay recorded yet"
+  - The "Run" button for "projects-list" is enabled with the tooltip "Replay the recorded steps"
+  - Each case row has a provider dropdown next to the Record button

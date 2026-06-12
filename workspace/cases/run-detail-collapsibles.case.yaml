@@ -1,5 +1,5 @@
 name: run-detail-collapsibles
-url: http://localhost:7701/
+url: /
 steps:
   - Click the "demo-workspace" project name on its project card
   - Click the "Runs" link in the sidebar navigation

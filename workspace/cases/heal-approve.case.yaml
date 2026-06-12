@@ -1,5 +1,5 @@
 name: heal-approve
-url: http://localhost:7701/
+url: /
 steps:
   - Click the "demo-workspace" project name on its project card
   - Click the "Heals" link in the sidebar navigation

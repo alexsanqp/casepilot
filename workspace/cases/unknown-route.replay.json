@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "case": "unknown-route",
+  "url": "/this-route-does-not-exist",
+  "providerUsed": "agent",
+  "recordedAt": "2026-06-12T13:24:08.885Z",
+  "steps": [
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "value": "2000",
+      "note": "Wait for page content to finish loading"
+    },
+    {
+      "kind": "assert",
+      "assert": "textPresent",
+      "text": "Page not found.",
+      "note": "The main content area shows the text \"Page not found.\""
+    },
+    {
+      "kind": "assert",
+      "assert": "textPresent",
+      "text": "Casepilot",
+      "note": "The Casepilot wordmark is still visible in the sidebar"
+    }
+  ],
+  "meta": {
+    "healCount": 0
+  }
+}

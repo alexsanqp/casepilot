@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "case": "run-options-popover",
+  "url": "/",
+  "providerUsed": "agent",
+  "recordedAt": "2026-06-12T13:27:15.121Z",
+  "steps": [
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=link[name=\"demo-workspace\"]",
+      "note": "Step 1: Click the demo-workspace project name"
+    },
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "selector": "role=table",
+      "value": "5000",
+      "note": "Step 2: Wait for the cases table to appear"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "text=\"Options\"",
+      "note": "Step 3: Click the Options button using text selector"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=checkbox[name=\"video\"]",
+      "note": "Step 5: Check the video checkbox"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=checkbox[name=\"optimize video\"]",
+      "note": "Step 6: Check the now-enabled optimize video checkbox"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=checkbox[name=\"screenshots\"]",
+      "note": "Step 7: Check the screenshots checkbox"
+    },
+    {
+      "kind": "act",
+      "action": "select",
+      "selector": "role=combobox[name=\"Viewport\"]",
+      "value": "custom",
+      "note": "Step 8: Select custom in the Viewport dropdown"
+    },
+    {
+      "kind": "act",
+      "action": "fill",
+      "selector": "role=textbox[name=\"Custom WxH\"]",
+      "value": "1600x900",
+      "note": "Step 9: Type 1600x900 into the Custom WxH input"
+    },
+    {
+      "kind": "act",
+      "action": "select",
+      "selector": "role=combobox[name=\"Heal policy (replay)\"]",
+      "value": "auto",
+      "note": "Step 10: Select auto in the Heal policy (replay) dropdown"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=checkbox[name=\"video\"]",
+      "note": "Assertion 1a: video checkbox is checked"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=checkbox[name=\"optimize video\"]",
+      "note": "Assertion 1b: optimize video checkbox is checked"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=checkbox[name=\"screenshots\"]",
+      "note": "Assertion 1c: screenshots checkbox is checked"
+    },
+    {
+      "kind": "assert",
+      "assert": "valueEquals",
+      "selector": "role=textbox[name=\"Custom WxH\"]",
+      "text": "1600x900",
+      "note": "Assertion 2: Custom WxH input contains 1600x900"
+    },
+    {
+      "kind": "assert",
+      "assert": "valueEquals",
+      "selector": "role=combobox[name=\"Heal policy (replay)\"]",
+      "text": "auto",
+      "note": "Assertion 3: Heal policy dropdown shows auto"
+    }
+  ],
+  "meta": {
+    "healCount": 0
+  }
+}

@@ -1,5 +1,5 @@
 name: heals-pending-list
-url: http://localhost:7701/
+url: /
 steps:
   - Click the "demo-workspace" project name on its project card
   - Look at the "Heals" link in the sidebar and note whether it shows a numeric badge

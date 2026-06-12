@@ -1,5 +1,5 @@
 name: projects-add-and-remove
-url: http://localhost:7701/
+url: /
 steps:
   - Scroll down to the "Add project" section
   - Type "selftest-temp" into the "Name" input of the add project form

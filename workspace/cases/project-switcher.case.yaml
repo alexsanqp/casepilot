@@ -1,5 +1,5 @@
 name: project-switcher
-url: http://localhost:7701/
+url: /
 steps:
   - In the sidebar, select "demo-workspace" from the project switcher dropdown labeled "Switch project"
   - Wait for the "Cases" heading to appear
