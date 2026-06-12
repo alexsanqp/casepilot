@@ -5,6 +5,7 @@ import type { Browser, BrowserContext, Page } from 'playwright';
 import { rankElements } from './scoring.js';
 import type { ActStep, AssertStep, QueryCandidate, ReplayStep, RunOptions } from '../types.js';
 
+const DEFAULT_VIEWPORT = { width: 1920, height: 1080 } as const;
 const ACTION_TIMEOUT_MS = 5000;
 const NAVIGATION_TIMEOUT_MS = 15000;
 const SNAPSHOT_MAX_CHARS = 6000;
@@ -243,6 +244,7 @@ export class BrowserSession {
   private readonly options: RunOptions;
   private readonly refMap = new Map<string, string>();
   private refCounter = 0;
+  private startedAtMs = 0;
 
   private constructor(options: RunOptions) {
     this.options = options;
@@ -255,16 +257,26 @@ export class BrowserSession {
     const session = new BrowserSession(options);
     await mkdir(options.artifactsDir, { recursive: true });
     session.browser = await chromium.launch({ headless: options.headless ?? true });
-    session.context = await session.browser.newContext(
-      options.video ? { recordVideo: { dir: path.join(options.artifactsDir, 'video') } } : {},
-    );
+    const viewport = options.viewport ?? DEFAULT_VIEWPORT;
+    session.context = await session.browser.newContext({
+      viewport,
+      recordVideo: options.video
+        ? { dir: path.join(options.artifactsDir, 'video'), size: viewport }
+        : undefined,
+    });
     session.pageInstance = await session.context.newPage();
     session.pageInstance.setDefaultTimeout(ACTION_TIMEOUT_MS);
+    session.startedAtMs = Date.now();
     return session;
   }
 
   get page(): Page {
     return this.pageInstance;
+  }
+
+  /** Epoch ms captured when launch completed; StepResult.offsetMs is relative to this. */
+  get startedAt(): number {
+    return this.startedAtMs;
   }
 
   async goto(url: string): Promise<void> {
@@ -413,6 +425,19 @@ export class BrowserSession {
       }
     } catch (err) {
       return { ok: false, detail: errorMessage(err) };
+    }
+  }
+
+  /** Non-throwing: capture failures come back as a warning so step execution never aborts. */
+  async captureStepScreenshot(ordinal: number): Promise<{ fileName?: string; warning?: string }> {
+    const fileName = `step-${String(ordinal).padStart(3, '0')}.png`;
+    try {
+      const dir = path.join(this.options.artifactsDir, 'screenshots');
+      await mkdir(dir, { recursive: true });
+      await this.pageInstance.screenshot({ path: path.join(dir, fileName) });
+      return { fileName };
+    } catch (err) {
+      return { warning: `screenshot ${fileName} failed: ${errorMessage(err)}` };
     }
   }
 

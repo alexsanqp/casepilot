@@ -46,6 +46,10 @@ export interface StepResult {
   status: 'passed' | 'failed' | 'healed';
   error?: string;
   durationMs: number;
+  /** Milliseconds from session start (BrowserSession.startedAt), captured when the step starts. */
+  offsetMs: number;
+  /** Screenshot file name (not full path) under `<artifactsDir>/screenshots/`. */
+  screenshot?: string;
 }
 
 export interface Artifacts {
@@ -69,12 +73,19 @@ export interface RunResult {
 export interface RunOptions {
   /** Default true. */
   headless?: boolean;
-  /** Default false. */
+  /** Default false. Video frames are recorded at the full viewport size. */
   video?: boolean;
   artifactsDir: string;
   /** Max provider turns during recording. Default 25. */
   maxSteps?: number;
   baseUrl?: string;
+  /** Browser viewport. Default 1920x1080. */
+  viewport?: { width: number; height: number };
+  /**
+   * Default false. When true, capture a screenshot after every executed step.
+   * Failed steps are always screenshotted regardless of this flag.
+   */
+  stepScreenshots?: boolean;
 }
 
 export interface ToolDef {
@@ -122,6 +133,25 @@ export interface HealContext {
 }
 
 export type HealerFn = (ctx: HealContext) => Promise<ReplayStep | null>;
+
+/** Emitted whenever a healer produces a replacement step that was used in a run. */
+export interface HealEvent {
+  caseName: string;
+  stepIndex: number;
+  oldStep: ReplayStep;
+  newStep: ReplayStep;
+  createdAt: string;
+}
+
+export interface ReplayHooks {
+  onHeal?: (event: HealEvent) => void | Promise<void>;
+  /**
+   * Default false: healed steps are used in-memory only and emitted via onHeal;
+   * the replay file is left untouched. True restores the legacy auto mode:
+   * persist the healed replay to artifactsDir and bump meta.healCount.
+   */
+  applyHeals?: boolean;
+}
 
 export interface QueryCandidate {
   ref: string;

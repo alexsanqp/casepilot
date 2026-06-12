@@ -2,6 +2,7 @@ import path from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { BrowserSession } from '../browser/session.js';
 import { saveReplayFile } from '../caseFile.js';
+import { captureStepScreenshotIfNeeded } from './stepScreenshots.js';
 import type {
   ActAction,
   ActStep,
@@ -180,12 +181,26 @@ export async function recordCase(
   ];
   const stepResults: StepResult[] = [];
   const replaySteps: ReplayStep[] = [];
+  const screenshots: string[] = [];
   let reported: { passed: boolean; explanation: string } | undefined;
   let videoPath: string | undefined;
 
   const session = await BrowserSession.launch(options);
   try {
     await session.goto(caseSpec.url);
+
+    // Screenshot ordinal is the executed-step count, not StepResult.index: failed
+    // steps reuse the next replay index, which would collide on file names.
+    const pushResult = async (result: Omit<StepResult, 'screenshot'>): Promise<void> => {
+      const screenshot = await captureStepScreenshotIfNeeded(
+        session,
+        options,
+        stepResults.length,
+        result.status === 'failed',
+        screenshots,
+      );
+      stepResults.push({ ...result, screenshot });
+    };
 
     const executeToolCall = async (call: ToolCall): Promise<{ output: string; done: boolean }> => {
       switch (call.name) {
@@ -205,15 +220,16 @@ export async function recordCase(
           } catch (err) {
             return { output: `error: ${errorMessage(err)}`, done: false };
           }
+          const offsetMs = Date.now() - session.startedAt;
           const t0 = Date.now();
           try {
             await session.act(step);
-            stepResults.push({ index: replaySteps.length, step, status: 'passed', durationMs: Date.now() - t0 });
+            await pushResult({ index: replaySteps.length, step, status: 'passed', durationMs: Date.now() - t0, offsetMs });
             replaySteps.push(step);
             return { output: `ok: ${step.action} executed${step.selector ? ` on ${step.selector}` : ''}`, done: false };
           } catch (err) {
             const error = errorMessage(err);
-            stepResults.push({ index: replaySteps.length, step, status: 'failed', error, durationMs: Date.now() - t0 });
+            await pushResult({ index: replaySteps.length, step, status: 'failed', error, durationMs: Date.now() - t0, offsetMs });
             return { output: `error: act ${step.action} failed: ${error}`, done: false };
           }
         }
@@ -224,14 +240,16 @@ export async function recordCase(
           } catch (err) {
             return { output: `error: ${errorMessage(err)}`, done: false };
           }
+          const offsetMs = Date.now() - session.startedAt;
           const t0 = Date.now();
           const { ok, detail } = await session.assert(step);
-          stepResults.push({
+          await pushResult({
             index: replaySteps.length,
             step,
             status: ok ? 'passed' : 'failed',
             error: ok ? undefined : detail,
             durationMs: Date.now() - t0,
+            offsetMs,
           });
           if (ok) replaySteps.push(step);
           return { output: ok ? `ok: ${detail}` : `error: assert failed: ${detail}`, done: false };
@@ -311,7 +329,7 @@ export async function recordCase(
     verdict,
     explanation,
     steps: stepResults,
-    artifacts: { videoPath, replayPath, transcriptPath, screenshots: [] },
+    artifacts: { videoPath, replayPath, transcriptPath, screenshots },
     startedAt,
     finishedAt: new Date().toISOString(),
   };
