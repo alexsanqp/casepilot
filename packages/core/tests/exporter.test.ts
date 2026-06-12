@@ -50,4 +50,28 @@ describe('exportToPlaywrightSpec', () => {
       /Cannot export step 0: act click has no selector/,
     );
   });
+
+  it('exports selector-less waitFor as recorder emits it', () => {
+    const spec = exportToPlaywrightSpec(
+      baseReplay([
+        { kind: 'act', action: 'waitFor', value: '1500' },
+        { kind: 'act', action: 'waitFor' },
+        { kind: 'act', action: 'waitFor', selector: '#ready' },
+      ]),
+    );
+
+    expect(spec).toContain(`await page.waitForTimeout(1500);`);
+    expect(spec).toContain(`await page.waitForLoadState('networkidle');`);
+    expect(spec).toContain(`await page.locator("#ready").waitFor({ state: 'visible' });`);
+  });
+
+  it('notes the baseURL requirement for relative-url replays', () => {
+    const spec = exportToPlaywrightSpec({ ...baseReplay([]), url: '/profile' });
+
+    expect(spec).toContain('use.baseURL');
+    expect(spec).toContain(`await page.goto("/profile");`);
+
+    const absolute = exportToPlaywrightSpec(baseReplay([]));
+    expect(absolute).not.toContain('use.baseURL');
+  });
 });

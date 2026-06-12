@@ -99,6 +99,11 @@ export interface RunOptions {
   optimizeVideo?: boolean;
   /** Padding kept around each step when trimming idle video time. Default 400. */
   videoPadMs?: number;
+  /**
+   * Native dialog policy (confirm/alert/prompt). Default 'accept' so flows
+   * behind confirmation dialogs stay drivable; Playwright alone would dismiss.
+   */
+  dialogs?: 'accept' | 'dismiss';
 }
 
 export interface ToolDef {

@@ -107,6 +107,36 @@ describe('BrowserSession.queryPage', () => {
   });
 });
 
+describe('BrowserSession native dialogs', () => {
+  const dialogFixtureUrl = new URL('./fixtures/dialog.html', import.meta.url).href;
+
+  it('accepts confirm() by default so flows behind dialogs are drivable', async () => {
+    const session = await BrowserSession.launch({ artifactsDir: dirFor('dialog-accept') });
+    try {
+      await session.goto(dialogFixtureUrl);
+      await session.act({ kind: 'act', action: 'click', selector: '#delete' });
+      const verdict = await session.assert({ kind: 'assert', assert: 'textPresent', selector: '#state', text: 'deleted' });
+      expect(verdict.ok).toBe(true);
+      expect(session.consumeLastDialog()).toBe('confirm: Really delete?');
+      expect(session.consumeLastDialog()).toBeUndefined();
+    } finally {
+      await session.close();
+    }
+  });
+
+  it('dismisses dialogs when the policy is dismiss', async () => {
+    const session = await BrowserSession.launch({ artifactsDir: dirFor('dialog-dismiss'), dialogs: 'dismiss' });
+    try {
+      await session.goto(dialogFixtureUrl);
+      await session.act({ kind: 'act', action: 'click', selector: '#delete' });
+      const verdict = await session.assert({ kind: 'assert', assert: 'textPresent', selector: '#state', text: 'intact' });
+      expect(verdict.ok).toBe(true);
+    } finally {
+      await session.close();
+    }
+  });
+});
+
 describe('record → replay → heal → video', () => {
   it('(a) recordCase with a scripted provider produces a passing ReplayFile', async () => {
     const { result, replay } = await recordCase(caseSpec, passingProvider(), { artifactsDir: dirFor('record') });

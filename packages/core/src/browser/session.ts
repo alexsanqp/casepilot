@@ -275,6 +275,7 @@ export class BrowserSession {
   private readonly refMap = new Map<string, string>();
   private refCounter = 0;
   private startedAtMs = 0;
+  private lastDialogMessage: string | undefined;
 
   private constructor(options: RunOptions) {
     this.options = options;
@@ -294,6 +295,13 @@ export class BrowserSession {
         ? { dir: path.join(options.artifactsDir, 'video'), size: viewport }
         : undefined,
     });
+    const dialogPolicy = options.dialogs ?? 'accept';
+    session.context.on('page', (page) => {
+      page.on('dialog', (dialog) => {
+        session.lastDialogMessage = `${dialog.type()}: ${dialog.message()}`;
+        void (dialogPolicy === 'accept' ? dialog.accept() : dialog.dismiss()).catch(() => {});
+      });
+    });
     session.pageInstance = await session.context.newPage();
     session.pageInstance.setDefaultTimeout(ACTION_TIMEOUT_MS);
     session.startedAtMs = Date.now();
@@ -302,6 +310,13 @@ export class BrowserSession {
 
   get page(): Page {
     return this.pageInstance;
+  }
+
+  /** Last auto-handled native dialog ("confirm: message"), cleared on read. */
+  consumeLastDialog(): string | undefined {
+    const message = this.lastDialogMessage;
+    this.lastDialogMessage = undefined;
+    return message;
   }
 
   /** Epoch ms captured when launch completed; StepResult.offsetMs is relative to this. */

@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Dialog fixture</title>
+  </head>
+  <body>
+    <button id="delete" onclick="if (confirm('Really delete?')) document.getElementById('state').textContent = 'deleted'">
+      Delete
+    </button>
+    <p id="state">intact</p>
+  </body>
+</html>

@@ -47,7 +47,14 @@ function emitAct(step: ActStep, index: number): string {
         ? `await page.locator(${q(step.selector)}).scrollIntoViewIfNeeded();`
         : `await page.mouse.wheel(0, ${Number(step.value ?? 600)});`;
     case 'waitFor':
-      return `await page.locator(${q(requireSelector(step, index))}).waitFor({ state: 'visible' });`;
+      if (step.selector) {
+        return `await page.locator(${q(step.selector)}).waitFor({ state: 'visible' });`;
+      }
+      // Mirrors replay semantics: a selector-less waitFor is a timed pause.
+      if (step.value && /^\d+$/.test(step.value)) {
+        return `await page.waitForTimeout(${Number(step.value)});`;
+      }
+      return `await page.waitForLoadState('networkidle');`;
   }
 }
 
@@ -73,9 +80,13 @@ function emitStep(step: ReplayStep, index: number): string {
 }
 
 export function exportToPlaywrightSpec(replay: ReplayFile): string {
+  const relative = replay.url.startsWith('/');
   const lines = [
     `import { test, expect } from '@playwright/test';`,
     '',
+    ...(relative
+      ? ['// Relative urls resolve against `use.baseURL` in playwright.config.', '']
+      : []),
     `test(${q(replay.case)}, async ({ page }) => {`,
     `  await page.goto(${q(replay.url)});`,
     ...replay.steps.map((step, index) => `  ${emitStep(step, index)}`),
