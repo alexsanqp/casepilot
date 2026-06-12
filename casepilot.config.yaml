@@ -2,5 +2,6 @@ defaultProvider: claude-code
 providers:
   - id: claude-code
     type: claude-code
+    model: sonnet
   - id: codex
     type: codex
