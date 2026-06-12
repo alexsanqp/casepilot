@@ -107,9 +107,27 @@ export function CaseDetailPage() {
               <div>
                 <h3 className="spec-title">Steps</h3>
                 <ol className="spec-list">
-                  {detail.spec.steps.map((step, i) => (
-                    <li key={i}>{step}</li>
-                  ))}
+                  {detail.spec.steps.map((step, i) => {
+                    if (typeof step === 'string') return <li key={i}>{step}</li>;
+                    const expects =
+                      step.expect === undefined
+                        ? []
+                        : Array.isArray(step.expect)
+                          ? step.expect
+                          : [step.expect];
+                    return (
+                      <li key={i}>
+                        {step.do}
+                        {expects.length > 0 && (
+                          <ul className="spec-step-expect">
+                            {expects.map((e, j) => (
+                              <li key={j}>{e}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ol>
               </div>
               <div>
@@ -165,6 +183,7 @@ export function CaseDetailPage() {
                 .map((r) => (
                   <tr
                     key={r.runId}
+                    aria-label={`run ${r.runId}`}
                     className={r.status === 'running' ? 'clickable row-running' : 'clickable'}
                     onClick={() =>
                       navigate(

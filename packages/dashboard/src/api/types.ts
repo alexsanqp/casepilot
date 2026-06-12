@@ -34,10 +34,12 @@ export interface CaseSummary {
   lastRun?: CaseLastRun;
 }
 
+export type CaseStep = string | { do: string; expect?: string | string[] };
+
 export interface CaseSpec {
   name: string;
   url: string;
-  steps: string[];
+  steps: CaseStep[];
   expect: string[];
 }
 
@@ -96,6 +98,8 @@ export interface StartRunRequest {
   optimizeVideo?: boolean;
   videoPadMs?: number;
   baseUrl?: string;
+  slowMo?: number;
+  stepDelayMs?: number;
 }
 
 export interface StartRunResponse {

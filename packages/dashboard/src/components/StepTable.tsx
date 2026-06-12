@@ -70,6 +70,8 @@ export function StepTable({
                 className={`${onRowClick ? 'clickable' : ''} ${
                   s.index === activeIndex ? 'active-row' : ''
                 }`}
+                aria-current={s.index === activeIndex ? 'true' : undefined}
+                data-active={s.index === activeIndex ? 'true' : undefined}
                 onClick={onRowClick ? () => onRowClick(s) : undefined}
               >
                 <td>{s.index}</td>

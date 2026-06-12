@@ -3,6 +3,13 @@ import type { HealPolicy, RunMode, StartRunRequest, Viewport } from '../api/type
 const VIEWPORT_PRESETS = ['1920x1080', '1366x768', '1280x720'] as const;
 const CUSTOM = 'custom';
 
+export type Pace = 'none' | 'natural' | 'slow';
+
+const PACE_PRESETS: Record<Exclude<Pace, 'none'>, { slowMo: number; stepDelayMs: number }> = {
+  natural: { slowMo: 150, stepDelayMs: 600 },
+  slow: { slowMo: 300, stepDelayMs: 1200 },
+};
+
 export interface RunOptionsValue {
   video: boolean;
   optimizeVideo: boolean;
@@ -11,16 +18,18 @@ export interface RunOptionsValue {
   customViewport: string;
   healPolicy: HealPolicy;
   baseUrl: string;
+  pace: Pace;
 }
 
 export const defaultRunOptions: RunOptionsValue = {
-  video: false,
-  optimizeVideo: false,
+  video: true,
+  optimizeVideo: true,
   screenshots: false,
   viewport: VIEWPORT_PRESETS[0],
   customViewport: '',
   healPolicy: 'review',
   baseUrl: '',
+  pace: 'none',
 };
 
 function parseViewport(value: string): Viewport | undefined {
@@ -35,10 +44,14 @@ function parseViewport(value: string): Viewport | undefined {
 export function runOptionsToRequest(
   options: RunOptionsValue,
   mode: RunMode,
-): Pick<StartRunRequest, 'video' | 'optimizeVideo' | 'screenshots' | 'viewport' | 'healPolicy' | 'baseUrl'> {
+): Pick<
+  StartRunRequest,
+  'video' | 'optimizeVideo' | 'screenshots' | 'viewport' | 'healPolicy' | 'baseUrl' | 'slowMo' | 'stepDelayMs'
+> {
   const raw = options.viewport === CUSTOM ? options.customViewport : options.viewport;
   const viewport = parseViewport(raw);
   const baseUrl = options.baseUrl.trim();
+  const pace = mode === 'replay' && options.pace !== 'none' ? PACE_PRESETS[options.pace] : undefined;
   return {
     video: options.video,
     optimizeVideo: options.video && options.optimizeVideo,
@@ -46,6 +59,7 @@ export function runOptionsToRequest(
     ...(viewport ? { viewport } : {}),
     ...(mode === 'replay' ? { healPolicy: options.healPolicy } : {}),
     ...(baseUrl ? { baseUrl } : {}),
+    ...(pace ?? {}),
   };
 }
 
@@ -139,6 +153,19 @@ export function RunOptions({
           >
             <option value="review">review</option>
             <option value="auto">auto</option>
+          </select>
+        </label>
+        <label className="field" title="Slow down replay for watchable videos">
+          <span>Pace (replay)</span>
+          <select
+            className="select"
+            value={value.pace}
+            disabled={disabled}
+            onChange={(e) => set({ pace: e.target.value as Pace })}
+          >
+            <option value="none">none</option>
+            <option value="natural">natural</option>
+            <option value="slow">slow</option>
           </select>
         </label>
       </div>

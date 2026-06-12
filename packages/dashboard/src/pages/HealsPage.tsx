@@ -99,6 +99,7 @@ function HealCard({
               type="button"
               className="btn btn-primary"
               disabled={busy}
+              aria-label={`Approve heal ${heal.caseName} step ${heal.stepIndex}`}
               onClick={() => void resolve(() => approveHeal(projectId, heal.id))}
             >
               {busy ? 'Working…' : 'Approve'}
@@ -107,6 +108,7 @@ function HealCard({
               type="button"
               className="btn btn-danger"
               disabled={busy}
+              aria-label={`Reject heal ${heal.caseName} step ${heal.stepIndex}`}
               onClick={() => void resolve(() => rejectHeal(projectId, heal.id))}
             >
               Reject

@@ -47,6 +47,7 @@ export const SyncedVideo = forwardRef<
           <button
             type="button"
             className={`btn ${showOptimized ? '' : 'btn-primary'}`}
+            aria-pressed={!showOptimized}
             onClick={() => setShowOptimized(false)}
           >
             original
@@ -54,6 +55,7 @@ export const SyncedVideo = forwardRef<
           <button
             type="button"
             className={`btn ${showOptimized ? 'btn-primary' : ''}`}
+            aria-pressed={showOptimized}
             onClick={() => setShowOptimized(true)}
           >
             optimized
