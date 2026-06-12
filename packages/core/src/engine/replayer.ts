@@ -3,6 +3,7 @@ import { mkdir } from 'node:fs/promises';
 import { BrowserSession } from '../browser/session.js';
 import { saveReplayFile } from '../caseFile.js';
 import { captureStepScreenshotIfNeeded } from './stepScreenshots.js';
+import { optimizeVideo } from './videoOptimizer.js';
 import type {
   CaseSpec,
   HealerFn,
@@ -145,13 +146,18 @@ export async function replayCase(
     ({ videoPath } = await session.close());
   }
 
+  const optimizedVideoPath =
+    options.optimizeVideo && videoPath
+      ? await optimizeVideo(videoPath, stepResults, { padMs: options.videoPadMs })
+      : undefined;
+
   return {
     case: replay.case,
     mode: 'replay',
     verdict,
     explanation,
     steps: stepResults,
-    artifacts: { videoPath, replayPath: persistedHeals ? replayPath : undefined, screenshots },
+    artifacts: { videoPath, optimizedVideoPath, replayPath: persistedHeals ? replayPath : undefined, screenshots },
     startedAt,
     finishedAt: new Date().toISOString(),
   };

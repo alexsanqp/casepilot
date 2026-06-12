@@ -3,6 +3,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { BrowserSession } from '../browser/session.js';
 import { saveReplayFile } from '../caseFile.js';
 import { captureStepScreenshotIfNeeded } from './stepScreenshots.js';
+import { optimizeVideo } from './videoOptimizer.js';
 import type {
   ActAction,
   ActStep,
@@ -323,13 +324,18 @@ export async function recordCase(
   await saveReplayFile(replayPath, replay);
   await writeFile(transcriptPath, JSON.stringify(messages, null, 2), 'utf8');
 
+  const optimizedVideoPath =
+    options.optimizeVideo && videoPath
+      ? await optimizeVideo(videoPath, stepResults, { padMs: options.videoPadMs })
+      : undefined;
+
   const result: RunResult = {
     case: caseSpec.name,
     mode: 'record',
     verdict,
     explanation,
     steps: stepResults,
-    artifacts: { videoPath, replayPath, transcriptPath, screenshots },
+    artifacts: { videoPath, optimizedVideoPath, replayPath, transcriptPath, screenshots },
     startedAt,
     finishedAt: new Date().toISOString(),
   };

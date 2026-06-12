@@ -54,6 +54,8 @@ export interface StepResult {
 
 export interface Artifacts {
   videoPath?: string;
+  /** Idle-trimmed copy of the run video; the original at videoPath is kept. */
+  optimizedVideoPath?: string;
   replayPath?: string;
   screenshots: string[];
   transcriptPath?: string;
@@ -86,6 +88,13 @@ export interface RunOptions {
    * Failed steps are always screenshotted regardless of this flag.
    */
   stepScreenshots?: boolean;
+  /**
+   * Default false. When true (and video is recorded), produce an additional
+   * idle-trimmed video next to the original. Best-effort: failures only warn.
+   */
+  optimizeVideo?: boolean;
+  /** Padding kept around each step when trimming idle video time. Default 400. */
+  videoPadMs?: number;
 }
 
 export interface ToolDef {
