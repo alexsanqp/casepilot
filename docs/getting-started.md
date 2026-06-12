@@ -74,10 +74,10 @@ All four keys are required; `steps` and `expect` are plain-English string lists.
 ## Record
 
 ```bash
-npx casepilot record login --video
+npx casepilot record login
 ```
 
-The provider drives a real browser, executes the steps, verifies the expectations, and reports a verdict. Output ends with the run directory path. Exit code 0 means passed.
+The provider drives a real browser, executes the steps, verifies the expectations, and reports a verdict. Output ends with the run directory path. Exit code 0 means passed. Run videos (plus an idle-trimmed copy) are recorded by default; disable with `--no-video` or `video: false` in `casepilot.config.yaml`.
 
 Artifacts after a successful record:
 
@@ -87,7 +87,7 @@ runs/<runId>/result.json         # full run report (verdict, per-step results, a
 runs/<runId>/replay.json         # the replay as produced by this run
 runs/<runId>/transcript.txt      # agent provider session transcript (agent CLIs)
 runs/<runId>/transcript.json     # chat message log (chat providers)
-runs/<runId>/video/*.webm        # with --video
+runs/<runId>/video/*.webm        # on by default; skipped with --no-video
 ```
 
 Run ids look like `20260611-142233-a1b2c3` (timestamp + random hex).

@@ -154,6 +154,34 @@ describe('POST /runs body options plumbing', () => {
     expect(badPolicy.statusCode).toBe(400);
   });
 
+  it('passes slowMo and stepDelayMs through to the engine RunOptions', async () => {
+    const { app, engine } = await setup();
+    await startRun(app, { case: 'login', mode: 'replay', slowMo: 150, stepDelayMs: 600 });
+    const options = (engine.replayCase as ReturnType<typeof vi.fn>).mock.calls[0]![1];
+    expect(options).toMatchObject({ slowMo: 150, stepDelayMs: 600 });
+  });
+
+  it('accepts the slowMo/stepDelayMs bounds 0 and 10000', async () => {
+    const { app, engine } = await setup();
+    await startRun(app, { case: 'login', mode: 'replay', slowMo: 0, stepDelayMs: 10000 });
+    const options = (engine.replayCase as ReturnType<typeof vi.fn>).mock.calls[0]![1];
+    expect(options).toMatchObject({ slowMo: 0, stepDelayMs: 10000 });
+  });
+
+  it('400s on negative, fractional, over-cap, or non-numeric slowMo/stepDelayMs', async () => {
+    const { app } = await setup();
+    for (const field of ['slowMo', 'stepDelayMs']) {
+      for (const bad of [-1, 1.5, 10001, 'fast']) {
+        const res = await app.inject({
+          method: 'POST',
+          url: '/api/runs',
+          payload: { case: 'login', mode: 'replay', [field]: bad },
+        });
+        expect(res.statusCode).toBe(400);
+      }
+    }
+  });
+
   it('400s on a malformed optimizeVideo or videoPadMs', async () => {
     const { app } = await setup();
     const badOptimize = await app.inject({

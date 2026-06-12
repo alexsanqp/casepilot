@@ -29,6 +29,27 @@ export function parseVideoPad(value: string): number {
   return padMs;
 }
 
+const MAX_PACING_MS = 10_000;
+
+function parsePacingMs(value: string, label: string): number {
+  if (!/^\d+$/.test(value.trim())) {
+    throw new InvalidArgumentError(`${label} must be a non-negative whole number of milliseconds, got "${value}"`);
+  }
+  const ms = Number.parseInt(value, 10);
+  if (ms > MAX_PACING_MS) {
+    throw new InvalidArgumentError(`${label} must be at most ${MAX_PACING_MS} ms, got "${value}"`);
+  }
+  return ms;
+}
+
+export function parseSlowMo(value: string): number {
+  return parsePacingMs(value, 'slow-mo');
+}
+
+export function parseStepDelay(value: string): number {
+  return parsePacingMs(value, 'step delay');
+}
+
 function isAbsoluteHttpUrl(value: string): boolean {
   try {
     const url = new URL(value);

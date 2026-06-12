@@ -14,10 +14,11 @@ const VALUE_FLAGS = new Set([
   '--project',
   '--viewport',
   '--video-pad',
+  '--slow-mo',
 ]);
 
 const USAGE = `Usage:
-  casepilot-mcp browser-tools --case <path.case.yaml> --artifacts <dir> [--video] [--headed] [--screenshots] [--viewport <WxH>] [--optimize-video] [--video-pad <ms>] [--base-url <url>]
+  casepilot-mcp browser-tools --case <path.case.yaml> --artifacts <dir> [--video] [--headed] [--screenshots] [--viewport <WxH>] [--optimize-video] [--video-pad <ms>] [--slow-mo <ms>] [--base-url <url>]
   casepilot-mcp control --workspace <dir> [--server <url>]
   casepilot-mcp control --registry <projects.json> [--project <id>] [--server <url>]
 
@@ -74,6 +75,15 @@ function optionalPositiveInt(flags: Map<string, string | boolean>, flag: string)
   return value;
 }
 
+function optionalNonNegativeInt(flags: Map<string, string | boolean>, flag: string): number | undefined {
+  const raw = optionalString(flags, flag);
+  if (raw === undefined) return undefined;
+  if (!/^\d+$/.test(raw.trim())) {
+    throw new Error(`${flag} must be a non-negative integer, got "${raw}"`);
+  }
+  return Number.parseInt(raw, 10);
+}
+
 async function main(): Promise<void> {
   const [, , command, ...rest] = process.argv;
   switch (command) {
@@ -89,6 +99,7 @@ async function main(): Promise<void> {
         viewport: viewportRaw === undefined ? undefined : parseViewport(viewportRaw),
         optimizeVideo: flags.get('--optimize-video') === true,
         videoPadMs: optionalPositiveInt(flags, '--video-pad'),
+        slowMo: optionalNonNegativeInt(flags, '--slow-mo'),
         baseUrl: optionalString(flags, '--base-url'),
       });
       break;

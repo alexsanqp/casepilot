@@ -18,6 +18,7 @@ export interface BrowserToolsOptions {
   viewport?: { width: number; height: number };
   optimizeVideo?: boolean;
   videoPadMs?: number;
+  slowMo?: number;
   baseUrl?: string;
   /** Test seam; defaults to BrowserSession.launch. */
   launchSession?: (options: RunOptions) => Promise<BrowserSession>;
@@ -70,6 +71,7 @@ export async function createBrowserToolsServer(options: BrowserToolsOptions): Pr
       baseUrl: options.baseUrl,
       viewport: options.viewport,
       stepScreenshots: !!options.screenshots,
+      slowMo: options.slowMo,
     });
     try {
       await session.goto(caseSpec.url);

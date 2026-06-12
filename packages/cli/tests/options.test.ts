@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { parseBaseUrl, parseHealPolicy, parseVideoPad, parseViewport, resolveBaseUrl } from '../src/options.js';
+import {
+  parseBaseUrl,
+  parseHealPolicy,
+  parseSlowMo,
+  parseStepDelay,
+  parseVideoPad,
+  parseViewport,
+  resolveBaseUrl,
+} from '../src/options.js';
 
 describe('parseViewport', () => {
   it('parses WxH strings', () => {
@@ -34,6 +42,29 @@ describe('parseVideoPad', () => {
   it('rejects zero and negative values', () => {
     expect(() => parseVideoPad('0')).toThrow(/positive/);
     expect(() => parseVideoPad('-100')).toThrow(/whole number/);
+  });
+});
+
+describe('parseSlowMo and parseStepDelay', () => {
+  it('parse non-negative integers up to the cap', () => {
+    expect(parseSlowMo('0')).toBe(0);
+    expect(parseSlowMo('150')).toBe(150);
+    expect(parseSlowMo('10000')).toBe(10000);
+    expect(parseStepDelay('0')).toBe(0);
+    expect(parseStepDelay(' 600 ')).toBe(600);
+    expect(parseStepDelay('10000')).toBe(10000);
+  });
+
+  it('reject negative, fractional, and non-numeric values', () => {
+    for (const bad of ['-1', '1.5', 'slow', '']) {
+      expect(() => parseSlowMo(bad)).toThrow(/non-negative whole number/);
+      expect(() => parseStepDelay(bad)).toThrow(/non-negative whole number/);
+    }
+  });
+
+  it('reject values over 10000 ms', () => {
+    expect(() => parseSlowMo('10001')).toThrow(/at most 10000/);
+    expect(() => parseStepDelay('60000')).toThrow(/at most 10000/);
   });
 });
 

@@ -2,7 +2,12 @@ import path from 'node:path';
 import os from 'node:os';
 import { mkdtemp, writeFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
-import { isAbsoluteHttpUrl, readWorkspaceBaseUrl, readWorkspaceHealPolicy } from '../src/workspaceConfig.js';
+import {
+  isAbsoluteHttpUrl,
+  readWorkspaceBaseUrl,
+  readWorkspaceHealPolicy,
+  readWorkspaceVideoConfig,
+} from '../src/workspaceConfig.js';
 import { CONFIG_FILE_NAME } from '../src/scaffold.js';
 
 async function workspaceWith(config?: string): Promise<string> {
@@ -43,5 +48,33 @@ describe('readWorkspaceBaseUrl', () => {
     const workspace = await workspaceWith('providers: []\nbaseUrl: https://staging.example.com\nhealPolicy: auto\n');
     await expect(readWorkspaceHealPolicy(workspace)).resolves.toBe('auto');
     await expect(readWorkspaceBaseUrl(workspace)).resolves.toBe('https://staging.example.com');
+  });
+});
+
+describe('readWorkspaceVideoConfig', () => {
+  it('defaults both video and optimizeVideo to true when the keys or the file are missing', async () => {
+    await expect(readWorkspaceVideoConfig(await workspaceWith('providers: []\n'))).resolves.toEqual({
+      video: true,
+      optimizeVideo: true,
+    });
+    await expect(readWorkspaceVideoConfig(await workspaceWith())).resolves.toEqual({
+      video: true,
+      optimizeVideo: true,
+    });
+  });
+
+  it('reads explicit booleans, including false', async () => {
+    const workspace = await workspaceWith('providers: []\nvideo: false\noptimizeVideo: false\n');
+    await expect(readWorkspaceVideoConfig(workspace)).resolves.toEqual({ video: false, optimizeVideo: false });
+  });
+
+  it('defaults each key independently', async () => {
+    const workspace = await workspaceWith('providers: []\nvideo: false\n');
+    await expect(readWorkspaceVideoConfig(workspace)).resolves.toEqual({ video: false, optimizeVideo: true });
+  });
+
+  it('rejects non-boolean values with an actionable error', async () => {
+    const workspace = await workspaceWith('providers: []\nvideo: yes please\n');
+    await expect(readWorkspaceVideoConfig(workspace)).rejects.toThrow(/video.*boolean/);
   });
 });

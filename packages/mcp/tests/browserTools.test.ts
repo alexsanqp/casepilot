@@ -91,4 +91,23 @@ describe('createBrowserToolsServer lazy startup', () => {
     );
     await client.close();
   });
+
+  it('forwards slowMo into the BrowserSession launch options and defaults it to undefined', async () => {
+    const launchSession = vi.fn(async () => {
+      throw new Error('stop after capturing options');
+    });
+    const { client } = await setup(launchSession, { slowMo: 250 });
+
+    await client.callTool({ name: 'snapshot', arguments: {} });
+    expect(launchSession).toHaveBeenCalledWith(expect.objectContaining({ slowMo: 250 }));
+    await client.close();
+
+    const launchDefault = vi.fn(async () => {
+      throw new Error('stop after capturing options');
+    });
+    const { client: client2 } = await setup(launchDefault);
+    await client2.callTool({ name: 'snapshot', arguments: {} });
+    expect(launchDefault).toHaveBeenCalledWith(expect.objectContaining({ slowMo: undefined }));
+    await client2.close();
+  });
 });

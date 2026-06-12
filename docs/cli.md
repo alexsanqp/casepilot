@@ -22,13 +22,14 @@ Record a case with an AI provider into a deterministic replay. `<case>` refers t
 | Option | Meaning |
 | --- | --- |
 | `--provider <id>` | provider id from `casepilot.config.yaml` (default: `defaultProvider`) |
-| `--video` | record a video of the run |
+| `--video` / `--no-video` | record a video of the run (default: **on**; `video:` in `casepilot.config.yaml` changes the default) |
+| `--optimize-video` / `--no-optimize-video` | also write an idle-trimmed copy of the video (default: **on**; `optimizeVideo:` key changes the default) |
 | `--headed` | run with a visible browser |
 | `--base-url <url>` | absolute http(s) base URL relative case urls resolve against |
 
 ```bash
-casepilot record login --provider claude-code --video
-casepilot record login --base-url https://staging.example.com
+casepilot record login --provider claude-code
+casepilot record login --no-video --base-url https://staging.example.com
 ```
 
 ## casepilot run \<case\>
@@ -37,7 +38,10 @@ Replay a recorded case (`cases/<case>.replay.json`). No LLM cost unless healing 
 
 | Option | Meaning |
 | --- | --- |
-| `--video` | record a video of the run |
+| `--video` / `--no-video` | record a video of the run (default: **on**; `video:` in `casepilot.config.yaml` changes the default) |
+| `--optimize-video` / `--no-optimize-video` | also write an idle-trimmed copy of the video (default: **on**; `optimizeVideo:` key changes the default) |
+| `--slow-mo <ms>` | milliseconds Playwright pauses between browser operations (0-10000) |
+| `--step-delay <ms>` | milliseconds to wait between replay steps (0-10000) |
 | `--headed` | run with a visible browser |
 | `--no-heal` | disable AI healing of failed steps |
 | `--base-url <url>` | absolute http(s) base URL relative case urls resolve against |
@@ -46,8 +50,11 @@ Healing picks a chat provider automatically: the default provider if it is a cha
 
 ```bash
 casepilot run login
-casepilot run login --no-heal --video
+casepilot run login --no-heal --no-video
+casepilot run login --slow-mo 150 --step-delay 600   # watchable pacing
 ```
+
+Video defaults: both the run video and its idle-trimmed copy are produced by default so every run leaves proof artifacts. Opt out per run with `--no-video` / `--no-optimize-video`, or per workspace with `video: false` / `optimizeVideo: false` in `casepilot.config.yaml` (an explicit flag always wins over the workspace key).
 
 ### Base URL precedence
 

@@ -107,7 +107,7 @@ export function createActions(io: CliIo = consoleIo): CliActions {
       process.exitCode = result.verdict === 'passed' ? 0 : 1;
     },
 
-    async run({ workspace, caseName, video, headed, heal, healPolicy, screenshots, viewport, optimizeVideo, videoPadMs, baseUrl }) {
+    async run({ workspace, caseName, video, headed, heal, healPolicy, screenshots, viewport, optimizeVideo, videoPadMs, slowMo, stepDelayMs, baseUrl }) {
       const ws = path.resolve(workspace);
       const runId = newRunId();
       const runDir = runDirPath(ws, runId);
@@ -127,6 +127,8 @@ export function createActions(io: CliIo = consoleIo): CliActions {
           viewport,
           optimizeVideo,
           videoPadMs,
+          slowMo,
+          stepDelayMs,
           baseUrl: resolveBaseUrl(baseUrl),
           runDir,
         });

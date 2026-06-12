@@ -76,10 +76,14 @@ Starts a run asynchronously.
 Request:
 
 ```json
-{ "case": "login", "mode": "record", "provider": "claude-code", "video": true, "headed": false, "baseUrl": "https://staging.example.com" }
+{ "case": "login", "mode": "record", "provider": "claude-code", "video": true, "headed": false, "slowMo": 150, "stepDelayMs": 600, "baseUrl": "https://staging.example.com" }
 ```
 
-`mode` is `"record"` or `"replay"`; `provider`, `video`, `headed`, `baseUrl` are optional. `baseUrl` must be an absolute http(s) URL; relative case urls resolve against it, and it takes precedence over the workspace `baseUrl:` in `casepilot.config.yaml`. Responses: `202 {"runId": "20260611-142233-a1b2c3"}` on accept; `404` when the case (or, for replay, the replay file) is missing; `400` for a malformed body.
+`mode` is `"record"` or `"replay"`; `provider`, `video`, `headed`, `slowMo`, `stepDelayMs`, `baseUrl` are optional. `baseUrl` must be an absolute http(s) URL; relative case urls resolve against it, and it takes precedence over the workspace `baseUrl:` in `casepilot.config.yaml`. Responses: `202 {"runId": "20260611-142233-a1b2c3"}` on accept; `404` when the case (or, for replay, the replay file) is missing; `400` for a malformed body.
+
+Pacing: `slowMo` (milliseconds Playwright pauses between every browser operation) and `stepDelayMs` (milliseconds between replay steps) are non-negative integers capped at 10000. They mainly matter for replay pacing and watchable videos; `slowMo` also applies to agent recordings.
+
+Video defaults: when `video` / `optimizeVideo` are omitted, they default to the workspace `video:` / `optimizeVideo:` keys in `casepilot.config.yaml`, which themselves default to **true**. An explicit `false` in the body always wins.
 
 This is the only way to record through an **agent** provider (the server spawns the CLI and the MCP bridge).
 

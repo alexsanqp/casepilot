@@ -42,6 +42,8 @@ const postRunBodySchema = z.object({
   healPolicy: z.enum(['review', 'auto']).optional(),
   optimizeVideo: z.boolean().optional(),
   videoPadMs: z.number().int().positive().optional(),
+  slowMo: z.number().int().min(0).max(10_000).optional(),
+  stepDelayMs: z.number().int().min(0).max(10_000).optional(),
   baseUrl: z
     .string()
     .refine(isAbsoluteHttpUrl, { message: 'baseUrl must be an absolute http(s) URL' })
@@ -156,7 +158,7 @@ function registerProjectScopedRoutes(app: FastifyInstance, deps: ApiDeps, base: 
     if (!body.success) {
       return reply.status(400).send({
         error:
-          'body must be {case, mode: "record"|"replay", provider?, video?, headed?, screenshots?, viewport?: {width, height}, healPolicy?: "review"|"auto", optimizeVideo?, videoPadMs?, baseUrl?: absolute http(s) URL}',
+          'body must be {case, mode: "record"|"replay", provider?, video?, headed?, screenshots?, viewport?: {width, height}, healPolicy?: "review"|"auto", optimizeVideo?, videoPadMs?, slowMo?: 0-10000, stepDelayMs?: 0-10000, baseUrl?: absolute http(s) URL}',
       });
     }
     const {
@@ -170,6 +172,8 @@ function registerProjectScopedRoutes(app: FastifyInstance, deps: ApiDeps, base: 
       healPolicy,
       optimizeVideo,
       videoPadMs,
+      slowMo,
+      stepDelayMs,
       baseUrl,
     } = body.data;
     if (!isSafeName(caseName)) return reply.status(400).send({ error: `invalid case name "${caseName}"` });
@@ -190,6 +194,8 @@ function registerProjectScopedRoutes(app: FastifyInstance, deps: ApiDeps, base: 
       healPolicy,
       optimizeVideo,
       videoPadMs,
+      slowMo,
+      stepDelayMs,
       baseUrl,
     });
     return reply.status(202).send({ runId });

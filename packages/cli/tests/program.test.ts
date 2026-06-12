@@ -51,27 +51,35 @@ describe('casepilot CLI parsing', () => {
       headed: true,
       screenshots: false,
       viewport: undefined,
-      optimizeVideo: false,
+      optimizeVideo: undefined,
       videoPadMs: undefined,
       baseUrl: undefined,
     });
   });
 
-  it('parses record without optional flags', async () => {
+  it('parses record without optional flags, leaving video tri-states undefined', async () => {
     const actions = stubActions();
     await parse(actions, ['record', 'login']);
     expect(actions.record).toHaveBeenCalledWith({
       workspace: process.cwd(),
       caseName: 'login',
       provider: undefined,
-      video: false,
+      video: undefined,
       headed: false,
       screenshots: false,
       viewport: undefined,
-      optimizeVideo: false,
+      optimizeVideo: undefined,
       videoPadMs: undefined,
       baseUrl: undefined,
     });
+  });
+
+  it('parses --no-video and --no-optimize-video as explicit false', async () => {
+    const actions = stubActions();
+    await parse(actions, ['record', 'login', '--no-video', '--no-optimize-video']);
+    expect(actions.record).toHaveBeenCalledWith(expect.objectContaining({ video: false, optimizeVideo: false }));
+    await parse(actions, ['run', 'login', '--no-video', '--no-optimize-video']);
+    expect(actions.run).toHaveBeenCalledWith(expect.objectContaining({ video: false, optimizeVideo: false }));
   });
 
   it('parses record --screenshots and --viewport', async () => {
@@ -100,14 +108,16 @@ describe('casepilot CLI parsing', () => {
     expect(actions.run).toHaveBeenCalledWith({
       workspace: process.cwd(),
       caseName: 'login',
-      video: false,
+      video: undefined,
       headed: false,
       heal: true,
       healPolicy: undefined,
       screenshots: false,
       viewport: undefined,
-      optimizeVideo: false,
+      optimizeVideo: undefined,
       videoPadMs: undefined,
+      slowMo: undefined,
+      stepDelayMs: undefined,
       baseUrl: undefined,
     });
   });
@@ -124,10 +134,34 @@ describe('casepilot CLI parsing', () => {
       healPolicy: undefined,
       screenshots: false,
       viewport: undefined,
-      optimizeVideo: false,
+      optimizeVideo: undefined,
       videoPadMs: undefined,
+      slowMo: undefined,
+      stepDelayMs: undefined,
       baseUrl: undefined,
     });
+  });
+
+  it('parses run --slow-mo and --step-delay', async () => {
+    const actions = stubActions();
+    await parse(actions, ['run', 'login', '--slow-mo', '150', '--step-delay', '600']);
+    expect(actions.run).toHaveBeenCalledWith(expect.objectContaining({ slowMo: 150, stepDelayMs: 600 }));
+  });
+
+  it('accepts 0 for --slow-mo and --step-delay (explicit off)', async () => {
+    const actions = stubActions();
+    await parse(actions, ['run', 'login', '--slow-mo', '0', '--step-delay', '0']);
+    expect(actions.run).toHaveBeenCalledWith(expect.objectContaining({ slowMo: 0, stepDelayMs: 0 }));
+  });
+
+  it('rejects negative, non-integer, and over-cap --slow-mo/--step-delay values', async () => {
+    const actions = stubActions();
+    await expect(parse(actions, ['run', 'login', '--slow-mo', '-1'])).rejects.toThrow();
+    await expect(parse(actions, ['run', 'login', '--slow-mo', '1.5'])).rejects.toThrow();
+    await expect(parse(actions, ['run', 'login', '--slow-mo', '10001'])).rejects.toThrow();
+    await expect(parse(actions, ['run', 'login', '--step-delay', 'fast'])).rejects.toThrow();
+    await expect(parse(actions, ['run', 'login', '--step-delay', '99999'])).rejects.toThrow();
+    expect(actions.run).not.toHaveBeenCalled();
   });
 
   it('parses run --heal-policy auto and --screenshots/--viewport', async () => {

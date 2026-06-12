@@ -2,7 +2,15 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 import { createWriteStream, type WriteStream } from 'node:fs';
 import { mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
-import { loadCaseFile, loadReplayFile, recordCase, replayCase, saveReplayFile, stripAnsi } from '@casepilot/core';
+import {
+  loadCaseFile,
+  loadReplayFile,
+  normalizeCaseSteps,
+  recordCase,
+  replayCase,
+  saveReplayFile,
+  stripAnsi,
+} from '@casepilot/core';
 import type {
   AgentProvider,
   CaseSpec,
@@ -15,7 +23,12 @@ import type {
 } from '@casepilot/core';
 import { buildHealer } from './healer.js';
 import { addHeal } from './heals.js';
-import { readWorkspaceBaseUrl, readWorkspaceHealPolicy, type HealPolicy } from './workspaceConfig.js';
+import {
+  readWorkspaceBaseUrl,
+  readWorkspaceHealPolicy,
+  readWorkspaceVideoConfig,
+  type HealPolicy,
+} from './workspaceConfig.js';
 import { loadWorkspaceRegistry, type ProviderRegistryLike } from './providersLoader.js';
 import { assertCaseName, caseFilePath, caseReplayPath, fileExists } from './workspace.js';
 
@@ -36,6 +49,10 @@ export interface RunRequest {
   videoPadMs?: number;
   /** Target base URL; overrides the workspace config baseUrl. */
   baseUrl?: string;
+  /** Milliseconds Playwright pauses between browser operations (chromium slowMo). */
+  slowMo?: number;
+  /** Replay only. Milliseconds to wait between replay steps. */
+  stepDelayMs?: number;
   runDir: string;
 }
 
@@ -68,16 +85,24 @@ export function defaultRunnerDeps(): RunnerDeps {
 }
 
 export function buildAgentTaskPrompt(spec: CaseSpec): string {
+  const stepLines: string[] = [];
+  normalizeCaseSteps(spec).forEach((step, i) => {
+    stepLines.push(`  ${i + 1}. ${step.instruction}`);
+    for (const expectation of step.expect) {
+      stepLines.push(`     -> after this step, verify: ${expectation}`);
+    }
+  });
   return [
     `You are executing a UI test case named "${spec.name}" against a real browser.`,
     'A casepilot MCP server exposes the browser tools: query_page, snapshot, act, assert, report_result.',
     `The browser is already open at the start URL: ${spec.url}`,
     'Execute these steps in order:',
-    ...spec.steps.map((s, i) => `  ${i + 1}. ${s}`),
+    ...stepLines,
     'Then verify every expectation with assert calls:',
     ...spec.expect.map((e, i) => `  ${i + 1}. ${e}`),
     'Rules:',
     '- Use query_page to locate elements and prefer the selectors it returns.',
+    '- When a step lists "after this step, verify" expectations, verify them with assert calls immediately after performing that step, before starting the next step. If such an assert fails, the case fails at that step.',
     '- Every successful act/assert is recorded into a deterministic replay.',
     '- Your turn budget is limited: batch multiple independent tool calls in a single message whenever possible (e.g. query_page for the next element together with an act on the current one, or several asserts at once).',
     '- Page state persists between tool calls; do not re-check state you already know.',
@@ -121,7 +146,7 @@ async function recordViaAgent(
   spec: CaseSpec,
   provider: AgentProvider,
   deps: RunnerDeps,
-  baseUrl?: string,
+  options: RunOptions,
 ): Promise<RunResult> {
   const mcpArgs = [
     deps.resolveMcpBin(),
@@ -131,13 +156,14 @@ async function recordViaAgent(
     '--artifacts',
     req.runDir,
   ];
-  if (req.video) mcpArgs.push('--video');
+  if (options.video) mcpArgs.push('--video');
   if (req.headed) mcpArgs.push('--headed');
-  if (req.screenshots) mcpArgs.push('--screenshots');
-  if (req.viewport) mcpArgs.push('--viewport', `${req.viewport.width}x${req.viewport.height}`);
-  if (req.optimizeVideo) mcpArgs.push('--optimize-video');
-  if (req.videoPadMs !== undefined) mcpArgs.push('--video-pad', String(req.videoPadMs));
-  if (baseUrl) mcpArgs.push('--base-url', baseUrl);
+  if (options.stepScreenshots) mcpArgs.push('--screenshots');
+  if (options.viewport) mcpArgs.push('--viewport', `${options.viewport.width}x${options.viewport.height}`);
+  if (options.optimizeVideo) mcpArgs.push('--optimize-video');
+  if (options.videoPadMs !== undefined) mcpArgs.push('--video-pad', String(options.videoPadMs));
+  if (options.slowMo !== undefined) mcpArgs.push('--slow-mo', String(options.slowMo));
+  if (options.baseUrl) mcpArgs.push('--base-url', options.baseUrl);
 
   const transcriptPath = path.join(req.runDir, 'transcript.txt');
   // Stream the CLI output to disk as it arrives, so even a hard kill of the
@@ -230,14 +256,20 @@ export async function executeRun(req: RunRequest, deps: RunnerDeps = defaultRunn
   assertCaseName(req.caseName);
   await mkdir(req.runDir, { recursive: true });
   const baseUrl = req.baseUrl ?? (await readWorkspaceBaseUrl(req.workspace));
+  // Single resolution point for video defaults: REST, CLI, and agent records
+  // all flow through here. Explicit false in the request wins over the
+  // workspace config, which itself defaults both keys to true.
+  const videoConfig = await readWorkspaceVideoConfig(req.workspace);
   const options: RunOptions = {
     headless: !req.headed,
-    video: !!req.video,
+    video: req.video ?? videoConfig.video,
     artifactsDir: req.runDir,
     viewport: req.viewport,
     stepScreenshots: req.screenshots,
-    optimizeVideo: req.optimizeVideo,
+    optimizeVideo: req.optimizeVideo ?? videoConfig.optimizeVideo,
     videoPadMs: req.videoPadMs,
+    slowMo: req.slowMo,
+    stepDelayMs: req.stepDelayMs,
     baseUrl,
   };
   const startedAt = new Date().toISOString();
@@ -259,7 +291,7 @@ export async function executeRun(req: RunRequest, deps: RunnerDeps = defaultRunn
           await saveReplayFile(caseReplayPath(req.workspace, req.caseName), recorded.replay);
         }
       } else {
-        result = await recordViaAgent(req, spec, provider, deps, baseUrl);
+        result = await recordViaAgent(req, spec, provider, deps, options);
       }
     }
   } catch (err) {
@@ -294,6 +326,6 @@ export { addHeal, listHeals, loadHeals, healsFilePath, resolveHeal } from './hea
 export type { HealRecord, HealStatus, HealsFile, HealInput } from './heals.js';
 export { approveHeal, rejectHeal } from './healApproval.js';
 export type { ApprovalOutcome, ApprovalFailure } from './healApproval.js';
-export { readWorkspaceBaseUrl, readWorkspaceHealPolicy } from './workspaceConfig.js';
-export type { HealPolicy } from './workspaceConfig.js';
+export { readWorkspaceBaseUrl, readWorkspaceHealPolicy, readWorkspaceVideoConfig } from './workspaceConfig.js';
+export type { HealPolicy, WorkspaceVideoConfig } from './workspaceConfig.js';
 export type { ProviderRegistryLike, ProviderSummary } from './providersLoader.js';

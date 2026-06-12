@@ -18,6 +18,15 @@ const baseUrlSchema = z
   .object({ baseUrl: z.string().optional() })
   .passthrough();
 
+const videoConfigSchema = z
+  .object({ video: z.boolean().optional(), optimizeVideo: z.boolean().optional() })
+  .passthrough();
+
+export interface WorkspaceVideoConfig {
+  video: boolean;
+  optimizeVideo: boolean;
+}
+
 export function isAbsoluteHttpUrl(value: string): boolean {
   try {
     const url = new URL(value);
@@ -49,6 +58,23 @@ export async function readWorkspaceHealPolicy(workspace: string): Promise<HealPo
     throw new Error(`Invalid healPolicy in ${path.join(workspace, CONFIG_FILE_NAME)}: must be "review" or "auto"`);
   }
   return parsed.data.healPolicy ?? 'review';
+}
+
+/** Both keys default to true: runs should produce proof videos unless opted out. */
+export async function readWorkspaceVideoConfig(workspace: string): Promise<WorkspaceVideoConfig> {
+  const doc = await readWorkspaceConfigDoc(workspace);
+  const fallback: WorkspaceVideoConfig = { video: true, optimizeVideo: true };
+  if (doc === undefined) return fallback;
+  const parsed = videoConfigSchema.safeParse(doc);
+  if (!parsed.success) {
+    throw new Error(
+      `Invalid video/optimizeVideo in ${path.join(workspace, CONFIG_FILE_NAME)}: both must be booleans`,
+    );
+  }
+  return {
+    video: parsed.data.video ?? fallback.video,
+    optimizeVideo: parsed.data.optimizeVideo ?? fallback.optimizeVideo,
+  };
 }
 
 export async function readWorkspaceBaseUrl(workspace: string): Promise<string | undefined> {

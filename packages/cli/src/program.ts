@@ -1,5 +1,13 @@
 import { Command } from 'commander';
-import { parseBaseUrl, parseHealPolicy, parseVideoPad, parseViewport, type Viewport } from './options.js';
+import {
+  parseBaseUrl,
+  parseHealPolicy,
+  parseSlowMo,
+  parseStepDelay,
+  parseVideoPad,
+  parseViewport,
+  type Viewport,
+} from './options.js';
 
 const BASE_URL_HELP =
   'target base URL relative case urls resolve against (overrides CASEPILOT_BASE_URL and the workspace baseUrl)';
@@ -10,25 +18,31 @@ export interface CliActions {
     workspace: string;
     caseName: string;
     provider?: string;
-    video: boolean;
+    /** Tri-state: true/false from --video/--no-video, undefined defers to the workspace default. */
+    video?: boolean;
     headed: boolean;
     screenshots: boolean;
     viewport?: Viewport;
-    optimizeVideo: boolean;
+    /** Tri-state like video. */
+    optimizeVideo?: boolean;
     videoPadMs?: number;
     baseUrl?: string;
   }): Promise<void>;
   run(opts: {
     workspace: string;
     caseName: string;
-    video: boolean;
+    /** Tri-state: true/false from --video/--no-video, undefined defers to the workspace default. */
+    video?: boolean;
     headed: boolean;
     heal: boolean;
     healPolicy?: 'review' | 'auto';
     screenshots: boolean;
     viewport?: Viewport;
-    optimizeVideo: boolean;
+    /** Tri-state like video. */
+    optimizeVideo?: boolean;
     videoPadMs?: number;
+    slowMo?: number;
+    stepDelayMs?: number;
     baseUrl?: string;
   }): Promise<void>;
   export(opts: { workspace: string; caseName: string; out?: string }): Promise<void>;
@@ -67,11 +81,13 @@ export function createProgram(actions: CliActions): Command {
     .description('Record a case with an AI provider into a deterministic replay')
     .argument('<case>', 'case name (cases/<name>.case.yaml)')
     .option('--provider <id>', 'provider id from casepilot.config.yaml')
-    .option('--video', 'record a video of the run')
+    .option('--video', 'record a video of the run (workspace default: on)')
+    .option('--no-video', 'disable video recording')
     .option('--headed', 'run with a visible browser')
     .option('--screenshots', 'capture a screenshot after every step')
     .option('--viewport <WxH>', 'browser viewport, e.g. 1920x1080', parseViewport)
-    .option('--optimize-video', 'also write an idle-trimmed copy of the run video')
+    .option('--optimize-video', 'also write an idle-trimmed copy of the run video (workspace default: on)')
+    .option('--no-optimize-video', 'disable the idle-trimmed video copy')
     .option('--video-pad <ms>', 'padding kept around each step when trimming idle video time', parseVideoPad)
     .option('--base-url <url>', BASE_URL_HELP, parseBaseUrl)
     .action(
@@ -92,11 +108,11 @@ export function createProgram(actions: CliActions): Command {
           workspace: workspace(),
           caseName,
           provider: opts.provider,
-          video: !!opts.video,
+          video: opts.video,
           headed: !!opts.headed,
           screenshots: !!opts.screenshots,
           viewport: opts.viewport,
-          optimizeVideo: !!opts.optimizeVideo,
+          optimizeVideo: opts.optimizeVideo,
           videoPadMs: opts.videoPad,
           baseUrl: opts.baseUrl,
         });
@@ -107,14 +123,18 @@ export function createProgram(actions: CliActions): Command {
     .command('run')
     .description('Replay a recorded case; exit code reflects the verdict')
     .argument('<case>', 'case name (cases/<name>.replay.json)')
-    .option('--video', 'record a video of the run')
+    .option('--video', 'record a video of the run (workspace default: on)')
+    .option('--no-video', 'disable video recording')
     .option('--headed', 'run with a visible browser')
     .option('--no-heal', 'disable AI healing of failed steps')
     .option('--heal-policy <policy>', 'review (queue heals for approval) or auto (apply immediately)', parseHealPolicy)
     .option('--screenshots', 'capture a screenshot after every step')
     .option('--viewport <WxH>', 'browser viewport, e.g. 1920x1080', parseViewport)
-    .option('--optimize-video', 'also write an idle-trimmed copy of the run video')
+    .option('--optimize-video', 'also write an idle-trimmed copy of the run video (workspace default: on)')
+    .option('--no-optimize-video', 'disable the idle-trimmed video copy')
     .option('--video-pad <ms>', 'padding kept around each step when trimming idle video time', parseVideoPad)
+    .option('--slow-mo <ms>', 'milliseconds Playwright pauses between browser operations (max 10000)', parseSlowMo)
+    .option('--step-delay <ms>', 'milliseconds to wait between replay steps (max 10000)', parseStepDelay)
     .option('--base-url <url>', BASE_URL_HELP, parseBaseUrl)
     .action(
       async (
@@ -128,20 +148,24 @@ export function createProgram(actions: CliActions): Command {
           viewport?: Viewport;
           optimizeVideo?: boolean;
           videoPad?: number;
+          slowMo?: number;
+          stepDelay?: number;
           baseUrl?: string;
         },
       ) => {
         await actions.run({
           workspace: workspace(),
           caseName,
-          video: !!opts.video,
+          video: opts.video,
           headed: !!opts.headed,
           heal: opts.heal,
           healPolicy: opts.healPolicy,
           screenshots: !!opts.screenshots,
           viewport: opts.viewport,
-          optimizeVideo: !!opts.optimizeVideo,
+          optimizeVideo: opts.optimizeVideo,
           videoPadMs: opts.videoPad,
+          slowMo: opts.slowMo,
+          stepDelayMs: opts.stepDelay,
           baseUrl: opts.baseUrl,
         });
       },

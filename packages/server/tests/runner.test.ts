@@ -2,8 +2,8 @@ import path from 'node:path';
 import os from 'node:os';
 import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { describe, expect, it, vi } from 'vitest';
-import type { ChatProvider, ReplayFile, ReplayHooks, RunOptions, RunResult } from '@casepilot/core';
-import { executeRun, type RunnerDeps } from '../src/runner.js';
+import type { CaseSpec, ChatProvider, ReplayFile, ReplayHooks, RunOptions, RunResult } from '@casepilot/core';
+import { buildAgentTaskPrompt, executeRun, type RunnerDeps } from '../src/runner.js';
 import { listHeals } from '../src/heals.js';
 import { CONFIG_FILE_NAME } from '../src/scaffold.js';
 import type { ProviderRegistryLike } from '../src/providersLoader.js';
@@ -271,6 +271,168 @@ describe('executeRun option plumbing', () => {
     expect(capturedArgs.slice(capturedArgs.indexOf('--video-pad'))).toEqual(
       expect.arrayContaining(['--video-pad', '250']),
     );
+  });
+
+  it('passes slowMo and stepDelayMs through to RunOptions for replay', async () => {
+    const { workspace, runDir } = await setupReplayWorkspace();
+    const replayCase = vi.fn(async (_replay: ReplayFile, options: RunOptions) => {
+      expect(options).toMatchObject({ slowMo: 150, stepDelayMs: 600 });
+      return passedResult('replay');
+    });
+    const deps: RunnerDeps = {
+      engine: { recordCase: vi.fn(), replayCase },
+      loadRegistry: async () => registry,
+      resolveMcpBin: () => 'C:/fake/mcp/bin.js',
+    };
+
+    await executeRun({ workspace, caseName: 'login', mode: 'replay', slowMo: 150, stepDelayMs: 600, runDir }, deps);
+    expect(replayCase).toHaveBeenCalledTimes(1);
+  });
+
+  it('forwards --slow-mo to the browser-tools bridge args for agent records', async () => {
+    const { workspace, runDir } = await setupWorkspace();
+    let capturedArgs: string[] = [];
+    const agentProvider = {
+      kind: 'agent' as const,
+      id: 'fake-agent',
+      runTask: vi.fn(async ({ mcp }: { mcp: { args: string[] } }) => {
+        capturedArgs = mcp.args;
+        await writeFile(path.join(runDir, 'result.json'), JSON.stringify(passedResult('record')), 'utf8');
+        return { transcript: 't' };
+      }),
+    };
+    const agentRegistry: ProviderRegistryLike = {
+      get: () => agentProvider,
+      list: () => [{ id: 'fake-agent', kind: 'agent', type: 'fake' }],
+      default: () => agentProvider,
+    };
+    const deps: RunnerDeps = {
+      engine: { recordCase: vi.fn(), replayCase: vi.fn() },
+      loadRegistry: async () => agentRegistry,
+      resolveMcpBin: () => 'C:/fake/mcp/bin.js',
+    };
+
+    await executeRun({ workspace, caseName: 'login', mode: 'record', slowMo: 300, runDir }, deps);
+    expect(capturedArgs.slice(capturedArgs.indexOf('--slow-mo'))).toEqual(
+      expect.arrayContaining(['--slow-mo', '300']),
+    );
+  });
+});
+
+describe('executeRun video defaults', () => {
+  function chatDeps(recordCase: RunnerDeps['engine']['recordCase']): RunnerDeps {
+    return {
+      engine: { recordCase, replayCase: vi.fn() },
+      loadRegistry: async () => registry,
+      resolveMcpBin: () => 'C:/fake/mcp/bin.js',
+    };
+  }
+
+  it('defaults video and optimizeVideo to true when neither the request nor the config sets them', async () => {
+    const { workspace, runDir } = await setupWorkspace();
+    const recordCase = vi.fn(async (_spec, _provider, options: RunOptions) => {
+      expect(options).toMatchObject({ video: true, optimizeVideo: true });
+      return { result: passedResult('record'), replay: makeReplayFile() };
+    });
+
+    await executeRun({ workspace, caseName: 'login', mode: 'record', runDir }, chatDeps(recordCase));
+    expect(recordCase).toHaveBeenCalledTimes(1);
+  });
+
+  it('reads video and optimizeVideo from the workspace config', async () => {
+    const { workspace, runDir } = await setupWorkspace();
+    await writeFile(
+      path.join(workspace, CONFIG_FILE_NAME),
+      'providers: []\nvideo: false\noptimizeVideo: false\n',
+      'utf8',
+    );
+    const recordCase = vi.fn(async (_spec, _provider, options: RunOptions) => {
+      expect(options).toMatchObject({ video: false, optimizeVideo: false });
+      return { result: passedResult('record'), replay: makeReplayFile() };
+    });
+
+    await executeRun({ workspace, caseName: 'login', mode: 'record', runDir }, chatDeps(recordCase));
+    expect(recordCase).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets an explicit request false win over a config true', async () => {
+    const { workspace, runDir } = await setupWorkspace();
+    await writeFile(path.join(workspace, CONFIG_FILE_NAME), 'providers: []\nvideo: true\noptimizeVideo: true\n', 'utf8');
+    const recordCase = vi.fn(async (_spec, _provider, options: RunOptions) => {
+      expect(options).toMatchObject({ video: false, optimizeVideo: false });
+      return { result: passedResult('record'), replay: makeReplayFile() };
+    });
+
+    await executeRun(
+      { workspace, caseName: 'login', mode: 'record', video: false, optimizeVideo: false, runDir },
+      chatDeps(recordCase),
+    );
+    expect(recordCase).toHaveBeenCalledTimes(1);
+  });
+
+  it('flows the default video flags into the agent bridge args', async () => {
+    const { workspace, runDir } = await setupWorkspace();
+    let capturedArgs: string[] = [];
+    const agentProvider = {
+      kind: 'agent' as const,
+      id: 'fake-agent',
+      runTask: vi.fn(async ({ mcp }: { mcp: { args: string[] } }) => {
+        capturedArgs = mcp.args;
+        await writeFile(path.join(runDir, 'result.json'), JSON.stringify(passedResult('record')), 'utf8');
+        return { transcript: 't' };
+      }),
+    };
+    const agentRegistry: ProviderRegistryLike = {
+      get: () => agentProvider,
+      list: () => [{ id: 'fake-agent', kind: 'agent', type: 'fake' }],
+      default: () => agentProvider,
+    };
+    const deps: RunnerDeps = {
+      engine: { recordCase: vi.fn(), replayCase: vi.fn() },
+      loadRegistry: async () => agentRegistry,
+      resolveMcpBin: () => 'C:/fake/mcp/bin.js',
+    };
+
+    await executeRun({ workspace, caseName: 'login', mode: 'record', runDir }, deps);
+    expect(capturedArgs).toContain('--video');
+    expect(capturedArgs).toContain('--optimize-video');
+
+    await executeRun({ workspace, caseName: 'login', mode: 'record', video: false, optimizeVideo: false, runDir }, deps);
+    expect(capturedArgs).not.toContain('--video');
+    expect(capturedArgs).not.toContain('--optimize-video');
+  });
+});
+
+describe('buildAgentTaskPrompt', () => {
+  it('renders per-step expectations with an immediate-verify instruction', () => {
+    const spec: CaseSpec = {
+      name: 'login',
+      url: 'https://example.test/login',
+      steps: [
+        'Open the login form',
+        { do: 'Click the Login button', expect: ['The dashboard heading is visible', 'The url contains "/dashboard"'] },
+      ],
+      expect: ['No error toast is shown'],
+    };
+    const prompt = buildAgentTaskPrompt(spec);
+    expect(prompt).toContain('1. Open the login form');
+    expect(prompt).toContain('2. Click the Login button');
+    expect(prompt).toContain('-> after this step, verify: The dashboard heading is visible');
+    expect(prompt).toContain('-> after this step, verify: The url contains "/dashboard"');
+    expect(prompt).toContain('verify them with assert calls immediately after performing that step');
+    expect(prompt).toContain('1. No error toast is shown');
+  });
+
+  it('renders plain string steps without per-step verify lines', () => {
+    const spec: CaseSpec = {
+      name: 'login',
+      url: 'https://example.test/login',
+      steps: ['Click the Login button'],
+      expect: ['The dashboard heading is visible'],
+    };
+    const prompt = buildAgentTaskPrompt(spec);
+    expect(prompt).toContain('1. Click the Login button');
+    expect(prompt).not.toContain('-> after this step, verify:');
   });
 });
 
