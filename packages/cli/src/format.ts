@@ -3,6 +3,12 @@ import type { HealRecord, RunSummary } from '@casepilot/server/runner';
 
 const STATUS_MARKERS = { passed: '[PASS]', failed: '[FAIL]', healed: '[HEAL]' } as const;
 
+const ANSI_PATTERN = /\u001b(?:\[[0-9;?]*[ -\/]*[@-~]|\][^\u0007\u001b]*(?:\u0007|\u001b\\)?|[@-Z\\-_])/g;
+
+export function stripAnsi(text: string): string {
+  return text.replace(ANSI_PATTERN, '');
+}
+
 export function describeStep(step: ReplayStep): string {
   const target = step.selector ? ` ${step.selector}` : '';
   return step.kind === 'act' ? `act:${step.action}${target}` : `assert:${step.assert}${target}`;
@@ -27,7 +33,7 @@ export function formatStepTable(steps: StepResult[]): string {
       STATUS_MARKERS[s.status],
       describeStep(s.step),
       String(s.durationMs),
-      s.error ?? '',
+      s.error ? stripAnsi(s.error) : '',
     ]),
   );
 }
@@ -39,7 +45,7 @@ export function formatRunResult(result: RunResult): string {
     '',
     formatStepTable(result.steps),
     '',
-    `Explanation: ${result.explanation}`,
+    `Explanation: ${stripAnsi(result.explanation)}`,
   ];
   const { artifacts } = result;
   if (artifacts.replayPath) lines.push(`Replay:     ${artifacts.replayPath}`);

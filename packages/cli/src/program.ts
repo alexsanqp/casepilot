@@ -29,6 +29,7 @@ export interface CliActions {
   export(opts: { workspace: string; caseName: string; out?: string }): Promise<void>;
   runs(opts: { workspace: string; server?: string }): Promise<void>;
   report(opts: { workspace: string; runId: string; server?: string }): Promise<void>;
+  transcript(opts: { workspace: string; runId: string }): Promise<void>;
   serve(opts: { workspace?: string; port: number; registry?: string }): Promise<void>;
   mcp(opts: { workspace: string }): Promise<void>;
   projectsList(opts: { registry?: string }): Promise<void>;
@@ -159,6 +160,14 @@ export function createProgram(actions: CliActions): Command {
     .option('--server <url>', 'read the report from a casepilot REST server instead of the filesystem')
     .action(async (runId: string, opts: { server?: string }) => {
       await actions.report({ workspace: workspace(), runId, server: opts.server });
+    });
+
+  program
+    .command('transcript')
+    .description('Render a run provider transcript (event JSONL) as readable text')
+    .argument('<runId>', 'run id')
+    .action(async (runId: string) => {
+      await actions.transcript({ workspace: workspace(), runId });
     });
 
   program

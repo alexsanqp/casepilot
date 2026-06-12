@@ -7,4 +7,7 @@ export {
   formatRunSummaries,
   formatStepTable,
   formatTable,
+  stripAnsi,
 } from './format.js';
+export { formatTranscript } from './transcript.js';
+export { formatHeartbeat, startHeartbeat, HEARTBEAT_INTERVAL_MS } from './heartbeat.js';

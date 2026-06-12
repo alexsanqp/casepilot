@@ -18,6 +18,8 @@ import {
 } from '@casepilot/server/runner';
 import { initWorkspace } from './init.js';
 import { formatHealDiff, formatHealList, formatRunResult, formatRunSummaries } from './format.js';
+import { startHeartbeat } from './heartbeat.js';
+import { formatTranscript } from './transcript.js';
 import type { CliActions } from './program.js';
 
 export interface CliIo {
@@ -76,21 +78,30 @@ export function createActions(io: CliIo = consoleIo): CliActions {
       const runId = newRunId();
       const runDir = runDirPath(ws, runId);
       io.out(`Recording case "${caseName}" (run ${runId})...`);
-      const result = await executeRun({
-        workspace: ws,
-        caseName,
-        mode: 'record',
-        providerId: provider,
-        video,
-        headed,
-        screenshots,
-        viewport,
-        optimizeVideo,
-        videoPadMs,
-        runDir,
-      });
+      const stopHeartbeat = startHeartbeat({ label: 'record', write: (line) => io.err(line) });
+      let result: RunResult;
+      try {
+        result = await executeRun({
+          workspace: ws,
+          caseName,
+          mode: 'record',
+          providerId: provider,
+          video,
+          headed,
+          screenshots,
+          viewport,
+          optimizeVideo,
+          videoPadMs,
+          runDir,
+        });
+      } finally {
+        stopHeartbeat();
+      }
       io.out(formatRunResult(result));
       io.out(`Run dir:    ${runDir}`);
+      if (result.verdict !== 'passed' && result.artifacts.transcriptPath) {
+        io.out(`Inspect the provider transcript with: casepilot transcript ${runId}`);
+      }
       process.exitCode = result.verdict === 'passed' ? 0 : 1;
     },
 
@@ -99,22 +110,31 @@ export function createActions(io: CliIo = consoleIo): CliActions {
       const runId = newRunId();
       const runDir = runDirPath(ws, runId);
       io.out(`Replaying case "${caseName}" (run ${runId})...`);
-      const result = await executeRun({
-        workspace: ws,
-        caseName,
-        mode: 'replay',
-        video,
-        headed,
-        heal,
-        healPolicy,
-        screenshots,
-        viewport,
-        optimizeVideo,
-        videoPadMs,
-        runDir,
-      });
+      const stopHeartbeat = startHeartbeat({ label: 'run', write: (line) => io.err(line) });
+      let result: RunResult;
+      try {
+        result = await executeRun({
+          workspace: ws,
+          caseName,
+          mode: 'replay',
+          video,
+          headed,
+          heal,
+          healPolicy,
+          screenshots,
+          viewport,
+          optimizeVideo,
+          videoPadMs,
+          runDir,
+        });
+      } finally {
+        stopHeartbeat();
+      }
       io.out(formatRunResult(result));
       io.out(`Run dir:    ${runDir}`);
+      if (result.verdict !== 'passed' && result.artifacts.transcriptPath) {
+        io.out(`Inspect the provider transcript with: casepilot transcript ${runId}`);
+      }
       process.exitCode = result.verdict === 'passed' ? 0 : 1;
     },
 
@@ -156,6 +176,20 @@ export function createActions(io: CliIo = consoleIo): CliActions {
         return;
       }
       io.out(formatRunResult(JSON.parse(raw) as RunResult));
+    },
+
+    async transcript({ workspace, runId }) {
+      const ws = path.resolve(workspace);
+      const transcriptPath = path.join(runsDir(ws), runId, 'transcript.txt');
+      let raw: string;
+      try {
+        raw = await readFile(transcriptPath, 'utf8');
+      } catch {
+        io.err(`No transcript found for run "${runId}" (looked for ${transcriptPath})`);
+        process.exitCode = 1;
+        return;
+      }
+      io.out(formatTranscript(raw));
     },
 
     async serve({ workspace, port, registry }) {

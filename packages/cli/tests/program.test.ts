@@ -9,6 +9,7 @@ function stubActions(): CliActions {
     export: vi.fn(async () => {}),
     runs: vi.fn(async () => {}),
     report: vi.fn(async () => {}),
+    transcript: vi.fn(async () => {}),
     serve: vi.fn(async () => {}),
     mcp: vi.fn(async () => {}),
     projectsList: vi.fn(async () => {}),
@@ -194,6 +195,21 @@ describe('casepilot CLI parsing', () => {
       runId: '20260611-101500-abc123',
       server: undefined,
     });
+  });
+
+  it('parses transcript with a run id', async () => {
+    const actions = stubActions();
+    await parse(actions, ['transcript', '20260611-101500-abc123']);
+    expect(actions.transcript).toHaveBeenCalledWith({
+      workspace: process.cwd(),
+      runId: '20260611-101500-abc123',
+    });
+  });
+
+  it('requires the run id argument for transcript', async () => {
+    const actions = stubActions();
+    await expect(parse(actions, ['transcript'])).rejects.toThrow();
+    expect(actions.transcript).not.toHaveBeenCalled();
   });
 
   it('parses serve with a numeric port', async () => {
