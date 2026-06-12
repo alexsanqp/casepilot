@@ -39,7 +39,7 @@ export function DirectoryPicker({
           <button
             type="button"
             className="btn"
-            disabled={busy || !listing || listing.parent === null}
+            disabled={busy || !listing || (listing.parent === null && !listing.path)}
             onClick={() => listing && navigate(listing.parent ?? undefined)}
           >
             ↑ Up

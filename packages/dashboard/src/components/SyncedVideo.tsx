@@ -4,7 +4,7 @@ import type { RunStepResult, StepStatus } from '../api/types';
 import { describeStep } from '../lib/steps';
 
 export interface SyncedVideoHandle {
-  seekTo: (offsetMs: number) => void;
+  seekTo: (offsetMs: number | undefined) => void;
 }
 
 const markerClass: Record<StepStatus, string> = {
@@ -29,13 +29,16 @@ export const SyncedVideo = forwardRef<
   const [showOptimized, setShowOptimized] = useState(false);
   const src = showOptimized ? optimizedVideoUrl(projectId, runId) : videoUrl(projectId, runId);
 
-  const seekTo = (offsetMs: number) => {
+  const seekTo = (offsetMs: number | undefined) => {
+    if (offsetMs === undefined || !Number.isFinite(offsetMs)) return;
     const video = videoRef.current;
     if (!video || !Number.isFinite(video.duration)) return;
     video.currentTime = Math.min(Math.max(offsetMs / 1000, 0), video.duration);
   };
 
   useImperativeHandle(ref, () => ({ seekTo }));
+
+  const markedSteps = steps.filter((s) => Number.isFinite(s.offsetMs));
 
   return (
     <div className="video-player">
@@ -66,11 +69,11 @@ export const SyncedVideo = forwardRef<
           setDurationMs(Number.isFinite(d) && d > 0 ? d * 1000 : null);
         }}
       />
-      {!showOptimized && durationMs !== null && steps.length > 0 && (
+      {!showOptimized && durationMs !== null && markedSteps.length > 0 && (
         <div className="timeline" role="list" aria-label="Step timeline">
-          {steps.map((s) => (
+          {markedSteps.map((s, i) => (
             <button
-              key={s.index}
+              key={i}
               type="button"
               role="listitem"
               className={`timeline-marker ${markerClass[s.status]} ${

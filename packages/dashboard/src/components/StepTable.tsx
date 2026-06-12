@@ -62,11 +62,11 @@ export function StepTable({
           </tr>
         </thead>
         <tbody>
-          {steps.map((s) => {
+          {steps.map((s, i) => {
             const screenshot = s.screenshot;
             return (
               <tr
-                key={s.index}
+                key={i}
                 className={`${onRowClick ? 'clickable' : ''} ${
                   s.index === activeIndex ? 'active-row' : ''
                 }`}

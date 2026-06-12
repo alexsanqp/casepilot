@@ -343,6 +343,10 @@ code {
   color: var(--red);
 }
 
+.message-warning {
+  color: var(--amber);
+}
+
 .running-text {
   color: var(--amber);
   animation: pulse 1.2s ease-in-out infinite;

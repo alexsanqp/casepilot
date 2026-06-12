@@ -27,18 +27,23 @@ export function CasesPage() {
   const [stepCounts, setStepCounts] = useState<Record<string, number>>({});
   const [verdicts, setVerdicts] = useState<Record<string, Verdict>>({});
   const [providers, setProviders] = useState<ProvidersResponse | null>(null);
+  const [providersError, setProvidersError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [exportState, setExportState] = useState<ExportState | null>(null);
 
   const load = useCallback(async () => {
+    const providersDone = getProviders(projectId)
+      .then((providerList) => {
+        setProviders(providerList);
+        setProvidersError(null);
+      })
+      .catch((err: unknown) => {
+        setProviders(null);
+        setProvidersError(errorMessage(err));
+      });
     try {
-      const [caseList, runs, providerList] = await Promise.all([
-        listCases(projectId),
-        listRuns(projectId),
-        getProviders(projectId),
-      ]);
+      const [caseList, runs] = await Promise.all([listCases(projectId), listRuns(projectId)]);
       setCases(caseList);
-      setProviders(providerList);
       setError(null);
 
       const latest: Record<string, Verdict> = {};
@@ -61,6 +66,7 @@ export function CasesPage() {
     } catch (err) {
       setError(errorMessage(err));
     }
+    await providersDone;
   }, [projectId]);
 
   useEffect(() => {
@@ -76,6 +82,11 @@ export function CasesPage() {
         </Link>
       </div>
       {error && <p className="message message-error">{error}</p>}
+      {providersError && (
+        <p className="message message-warning">
+          Providers unavailable, recording is disabled: {providersError}
+        </p>
+      )}
       {!cases && !error && <p className="muted">Loading cases…</p>}
       {cases && cases.length === 0 && (
         <div className="empty-state">
@@ -240,11 +251,13 @@ function CaseRow({
         <button
           type="button"
           className="btn"
-          disabled={busy}
+          disabled={busy || !providers}
           title={
-            summary.hasReplay
-              ? 'Record again, replacing the existing replay'
-              : 'Record a new replay'
+            !providers
+              ? 'Providers unavailable'
+              : summary.hasReplay
+                ? 'Record again, replacing the existing replay'
+                : 'Record a new replay'
           }
           onClick={() => void record()}
         >

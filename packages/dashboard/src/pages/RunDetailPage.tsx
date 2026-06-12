@@ -7,6 +7,7 @@ import { StepTable } from '../components/StepTable';
 import { SyncedVideo, type SyncedVideoHandle } from '../components/SyncedVideo';
 import { usePolling } from '../hooks/usePolling';
 import { runDuration } from '../lib/format';
+import { stripAnsi } from '../lib/ansi';
 
 export function RunDetailPage() {
   const { projectId = '', id } = useParams<{ projectId: string; id: string }>();
@@ -38,7 +39,7 @@ export function RunDetailPage() {
       {run?.status === 'error' && (
         <div className="banner banner-fail">
           <strong>ERROR</strong>
-          <p>{run.error ?? 'Run failed with an unknown error.'}</p>
+          <p>{run.error ? stripAnsi(run.error) : 'Run failed with an unknown error.'}</p>
         </div>
       )}
       {run?.result && <RunResultView projectId={projectId} runId={runId} result={run.result} />}
