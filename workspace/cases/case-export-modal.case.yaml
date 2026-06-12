@@ -1,10 +1,10 @@
 name: case-export-modal
 url: /
 steps:
-  - Click the "demo-workspace" project name on its project card
+  - Click the "casepilot" project name on its project card
   - Wait for the cases table to appear
-  - In the row for the case "sprset46-project-tag-limit", click the "Export" button
-  - 'Wait for the "Export: sprset46-project-tag-limit" modal to open'
+  - In the row for the case "projects-list", click the "Export" button
+  - 'Wait for the "Export: projects-list" modal to open'
   - Click the "Copy" button in the modal
   - Close the modal
 expect:
