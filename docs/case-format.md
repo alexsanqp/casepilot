@@ -82,7 +82,7 @@ Notes:
 - `providerUsed` is the provider id for chat recordings, or the literal `"agent"` when an agent CLI recorded through the browser-tools bridge.
 - Only steps that **succeeded** during recording are stored; failed attempts never enter the replay.
 - `url` stores the case url verbatim, so a relative case url stays relative in the replay and resolves against the effective base URL on every run. `goto` targets recorded against a relative-url case are re-relativized when they land on the same origin the case url resolved to; cross-origin targets are kept absolute.
-- `meta.healCount` increments every time the healer rewrites a step; the healed replay is saved back to disk.
+- `meta.healCount` increments every time a healed step is written into the replay: on approval under the default `review` heal policy, or immediately under `auto` (see [cli.md](cli.md#casepilot-heals)).
 
 ### Step kinds
 
@@ -112,6 +112,8 @@ Every step is either an `act` or an `assert`. All steps may carry a `note` (the 
 
 Actions time out after 5 s, navigations after 15 s.
 
+Native dialogs (confirm/alert/prompt) are **accepted** by default during record and replay, so flows behind confirmation dialogs stay drivable (Playwright alone would dismiss them). The policy is the `dialogs: 'accept' | 'dismiss'` field of the library-level `RunOptions`; it is not exposed as a CLI flag.
+
 ## How verdicts are computed
 
 A recording's verdict is **not** the model's claim. The rules (enforced in the recorder and in the browser-tools bridge):
@@ -124,6 +126,10 @@ A recording's verdict is **not** the model's claim. The rules (enforced in the r
 
    If validation disagrees, the verdict is `failed` with `"Provider reported passed, but validation disagrees: ..."`.
 
+Retried attempts at the same step index collapse to one result: the final attempt decides the verdict and earlier attempts show up as a `retries` count on that step. Step indices are unique in `result.json`.
+
 A replay's verdict is simpler: every recorded step must execute successfully (after healing, if enabled). The first unrecoverable failure stops the run with `failed`.
 
-Per-step results in `result.json` have `status` of `passed`, `failed`, or `healed` plus `durationMs` and the error text when relevant.
+## result.json
+
+Every run leaves `runs/<runId>/result.json` with `case` (and the mirror field `caseName`), `mode`, `verdict`, `explanation`, `steps`, `artifacts` (video, optimized video, replay, screenshots, transcript paths), `startedAt`, and `finishedAt`. Per-step results have `status` of `passed`, `failed`, or `healed` plus `durationMs`, `offsetMs` (from session start, used to seek the run video), an optional `screenshot` file name, an optional `retries` count, and the error text when relevant.

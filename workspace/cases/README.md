@@ -8,9 +8,9 @@ Before recording or replaying these cases:
 
 1. **Server running** on port 7700: `casepilot serve` (serves all registered projects from `~/.casepilot/projects.json`).
 2. **Dashboard running** on port 7701: `npm run dev` inside `packages/dashboard` (or however the dev server is started in this repo).
-3. **Projects registered**: this workspace itself under the name `casepilot` (`casepilot projects add C:\DISK_D\Projects\casepilot\workspace --name casepilot`) and the demo project under the name `demo-workspace` (`casepilot projects add ./demo-workspace --name demo-workspace`). `cases-list` and `run-button-states` assert against the `casepilot` project's own cases page; most other cases reference `demo-workspace`.
-4. **At least one finished run** in the demo project, ideally one recorded with `--video --optimize-video --screenshots`, so the run-detail cases have something to open.
-5. For the heal cases: at least one **pending heal** in the demo project's queue (produced by a replay run with heal policy `review` where a step was healed).
+3. **Projects registered**: this workspace itself under the name `casepilot` (`casepilot projects add C:\DISK_D\Projects\casepilot\workspace --name casepilot`) and the demo project under the name `demo-workspace` (`casepilot projects add ./demo-workspace --name demo-workspace`). Most cases (the cases-list, run-detail, heal and export cases) open the `casepilot` project itself; the editor, options-popover, project-switcher, navigation and heals-history cases reference `demo-workspace`.
+4. **Finished runs to open**: the run-detail cases open run history rows of this suite's own cases inside the `casepilot` project: `cases-list` needs at least one finished run (`run-detail-steps`, `run-detail-collapsibles`, `run-detail-download-artifacts`, `case-run-history`), and `projects-list` needs a finished run recorded with video and optimized video (`run-detail-video`, `run-detail-video-optimized-toggle`). `case-export-modal` needs `project-switcher` to have a recorded replay.
+5. For `heals-pending-list`, `heal-approve` and `heal-reject`: at least one **pending heal** in the `casepilot` project's queue (produced by a replay run under the default `review` heal policy where a step was healed).
 
 ## Recording and replaying
 
@@ -25,15 +25,17 @@ casepilot --workspace C:\DISK_D\Projects\casepilot\workspace record projects-lis
 # Replay it deterministically; exit code reflects the verdict
 casepilot --workspace C:\DISK_D\Projects\casepilot\workspace run projects-list
 
-# Useful extras
-casepilot --workspace C:\DISK_D\Projects\casepilot\workspace run projects-list --video --optimize-video --screenshots
-casepilot --workspace C:\DISK_D\Projects\casepilot\workspace runs            # list runs
-casepilot --workspace C:\DISK_D\Projects\casepilot\workspace report <runId>  # full run report
+# Useful extras (video + optimized copy are already on by default)
+casepilot --workspace C:\DISK_D\Projects\casepilot\workspace run projects-list --screenshots
+casepilot --workspace C:\DISK_D\Projects\casepilot\workspace runs                  # list runs
+casepilot --workspace C:\DISK_D\Projects\casepilot\workspace report <runId>        # full run report
+casepilot --workspace C:\DISK_D\Projects\casepilot\workspace transcript <runId>    # readable agent transcript
+casepilot --workspace C:\DISK_D\Projects\casepilot\workspace heals list            # pending heal queue
 ```
 
 ## Caveats
 
-- `run-start-replay` actually starts a replay of `sprset46-project-tag-limit`, which drives the Superset instance that case targets. Only run it when that environment is up.
+- `run-start-replay` actually starts a replay of `projects-list` in the `casepilot` project, i.e. a nested casepilot run against this same dashboard. It needs the `projects-list` replay to exist and leaves an extra run in the history.
 - `heal-approve` is destructive: approving a heal rewrites the affected case's replay file. `heal-reject` only marks the heal as rejected.
 - `projects-add-and-remove` and `case-editor-create-and-delete` clean up after themselves but mutate registry/case state while running.
 - Several cases are order-sensitive only in the sense that they assume the prerequisites above; they do not depend on each other.

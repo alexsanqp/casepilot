@@ -29,7 +29,7 @@ runner (server/runner.ts)
                                    └─ report_result ──► replay.json + result.json in the run dir
 ```
 
-The runner writes the CLI transcript to `runs/<id>/transcript.txt`, reads back `result.json`, and on a passing verdict copies `replay.json` to `cases/<name>.replay.json`. If the bridge wrote no `result.json`, the run fails with "the agent likely never called report_result".
+The runner streams the CLI output to `runs/<id>/transcript.txt` as it arrives, so even a timeout kill of the provider process leaves the full session behind. It then reads back `result.json` and, on a passing verdict, copies `replay.json` to `cases/<name>.replay.json`. If the bridge wrote no `result.json`, the run fails with "the agent likely never called report_result".
 
 ## Replay flow
 
@@ -42,9 +42,16 @@ When a replay step fails and healing is enabled, the replayer:
 1. takes an accessibility snapshot of the current page;
 2. calls the healer (a chat provider with a strict JSON-only system prompt) with the failed step, the error, the original case, and the snapshot;
 3. parses the reply as exactly one replay step (schema-validated; anything else means "no fix");
-4. retries the fixed step. On success the step is marked `healed`, the replay file is rewritten in place, and `meta.healCount` is incremented. If the retry also fails, the run fails.
+4. retries the fixed step. On success the step is marked `healed` and the run continues; if the retry also fails, the run fails.
 
 Only the broken step is sent to the model, never the whole test.
+
+What happens to a successful heal depends on the **heal policy** (workspace `healPolicy:` key, default `review`; overridable per run):
+
+- `review`: the healed step is used in-memory for this run only and queued as a pending record in the workspace `heals.json`. Approving it (dashboard, `casepilot heals approve`, or `POST .../heals/:id/approve`) writes the new step into `cases/<name>.replay.json` and bumps `meta.healCount`; approval is guarded against the replay step having changed since the heal was recorded (409 conflict).
+- `auto`: the replay file is rewritten in place immediately and `meta.healCount` is incremented, with no review step.
+
+Healing requires a **chat** provider; in a workspace with only agent providers (claude-code/codex), replays still run but failed steps are not healed.
 
 ## Why a11y tree and query_page instead of screenshots
 

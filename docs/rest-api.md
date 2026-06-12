@@ -35,6 +35,16 @@ Body `{"name": "MyApp", "path": "C:/work/myapp-tests"}`. Registers the directory
 
 Removes the project from the registry only; files are untouched. `204` on success, `404` if unknown.
 
+### GET /api/fs/dirs
+
+Directory listing for the dashboard's "Browse" directory picker. Without `?path=`, returns the filesystem roots (drive letters on Windows, `/` elsewhere); with `?path=<absolute dir>`, its subdirectories:
+
+```json
+{ "path": "C:\\work", "parent": "C:\\", "dirs": [ { "name": "myapp-tests", "path": "C:\\work\\myapp-tests" } ] }
+```
+
+Hidden directories (`.` / `$` prefixes) are skipped; a relative path is a `400`.
+
 ## Case routes
 
 Base: `/api/projects/:projectId` (or `/api` in single-workspace mode). `<name>` must match `[A-Za-z0-9][A-Za-z0-9._-]{0,127}`.
@@ -42,8 +52,11 @@ Base: `/api/projects/:projectId` (or `/api` in single-workspace mode). `<name>` 
 ### GET .../cases
 
 ```json
-[ { "name": "login", "url": "https://app.example.com/login", "hasReplay": true, "file": "...cases/login.case.yaml" } ]
+[ { "name": "login", "url": "https://app.example.com/login", "hasReplay": true, "file": "...cases/login.case.yaml",
+    "lastRun": { "id": "20260611-142233-a1b2c3", "status": "done", "verdict": "passed", "finishedAt": "..." } } ]
 ```
+
+`lastRun` is present only for cases with at least one known run.
 
 ### GET .../cases/:name
 
@@ -76,10 +89,13 @@ Starts a run asynchronously.
 Request:
 
 ```json
-{ "case": "login", "mode": "record", "provider": "claude-code", "video": true, "headed": false, "slowMo": 150, "stepDelayMs": 600, "baseUrl": "https://staging.example.com" }
+{ "case": "login", "mode": "record", "provider": "claude-code", "video": true, "headed": false,
+  "screenshots": true, "viewport": { "width": 1600, "height": 900 }, "healPolicy": "review",
+  "optimizeVideo": true, "videoPadMs": 400, "slowMo": 150, "stepDelayMs": 600,
+  "baseUrl": "https://staging.example.com" }
 ```
 
-`mode` is `"record"` or `"replay"`; `provider`, `video`, `headed`, `slowMo`, `stepDelayMs`, `baseUrl` are optional. `baseUrl` must be an absolute http(s) URL; relative case urls resolve against it, and it takes precedence over the workspace `baseUrl:` in `casepilot.config.yaml`. Responses: `202 {"runId": "20260611-142233-a1b2c3"}` on accept; `404` when the case (or, for replay, the replay file) is missing; `400` for a malformed body.
+`mode` is `"record"` or `"replay"`; everything else is optional. `baseUrl` must be an absolute http(s) URL; relative case urls resolve against it, and it takes precedence over the workspace `baseUrl:` in `casepilot.config.yaml`. `screenshots` captures a screenshot after every step (failed steps are always screenshotted), `viewport` overrides the default 1920x1080. `healPolicy` (replay only) is `"review"` (queue heals in `heals.json`, the workspace default) or `"auto"` (rewrite the replay in place); it overrides the workspace `healPolicy:` key. Responses: `202 {"runId": "20260611-142233-a1b2c3"}` on accept; `404` when the case (or, for replay, the replay file) is missing; `400` for a malformed body.
 
 Pacing: `slowMo` (milliseconds Playwright pauses between every browser operation) and `stepDelayMs` (milliseconds between replay steps) are non-negative integers capped at 10000. They mainly matter for replay pacing and watchable videos; `slowMo` also applies to agent recordings.
 
@@ -89,7 +105,7 @@ This is the only way to record through an **agent** provider (the server spawns 
 
 ### GET .../runs
 
-Run summaries, newest first:
+Run summaries, newest first. `?case=<name>` filters to one case (the case page's run history uses this):
 
 ```json
 [ { "runId": "...", "case": "login", "mode": "record", "provider": "claude-code", "status": "running", "verdict": null, "startedAt": "...", "finishedAt": null } ]
@@ -119,9 +135,41 @@ curl -s localhost:7700/api/projects/myapp/runs/$RUN | jq .result.verdict
 
 Streams the run's `video/*.webm` (`content-type: video/webm`). `404` when the run recorded no video.
 
+### GET .../runs/:id/video/optimized
+
+Streams the idle-trimmed copy of the run video (`video/webm`). `404` when no optimized video was produced.
+
+### GET .../runs/:id/screenshots/:fileName
+
+Streams a step screenshot (`image/png`). `fileName` comes from the `screenshot` field of a step result in `result.json`; path separators and `..` are rejected with `400`.
+
+### GET .../runs/:id/archive
+
+Streams the whole run directory as a zip (`application/zip`, `content-disposition: attachment; filename="<case>-<runId>.zip"`). Backs the dashboard's "Download artifacts" button.
+
 ### GET .../runs/:id/transcript
 
 Returns the agent session transcript as `text/plain`. `404` when absent (chat-provider runs write `transcript.json` into the run dir instead).
+
+## Heal routes
+
+Replay runs under the `review` heal policy queue successful heals in the workspace `heals.json` instead of rewriting the replay. Heal records carry `id`, `caseName`, `stepIndex`, `oldStep`, `newStep`, `runId`, `createdAt`, `status` (`pending`/`approved`/`rejected`), and `resolvedAt` once resolved.
+
+### GET .../heals
+
+Pending heals by default; `?all=1` (or `?all=true`) includes resolved ones:
+
+```json
+{ "heals": [ { "id": "a1b2c3d4", "caseName": "login", "stepIndex": 2, "oldStep": {...}, "newStep": {...}, "runId": "...", "createdAt": "...", "status": "pending" } ] }
+```
+
+### POST .../heals/:healId/approve
+
+Applies the pending heal into `cases/<case>.replay.json` (bumps `meta.healCount`). Returns `{"applied": true}`; `404` for an unknown id, `409 {"error":"heal already resolved"}` when not pending, `409 {"error":"replay step changed since heal was recorded"}` when the replay no longer matches the heal's `oldStep` (conflict guard).
+
+### POST .../heals/:healId/reject
+
+Marks the pending heal rejected without touching the replay. Returns `{"applied": false}`; same `404`/`409` failures as approve.
 
 ## Static artifacts
 

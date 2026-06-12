@@ -8,14 +8,16 @@ For run `<id>` under the workspace:
 
 ```
 runs/<id>/result.json       # verdict, explanation, per-step results with errors and timings
-runs/<id>/transcript.txt    # full agent CLI session (claude-code / codex), written even on failure
+runs/<id>/transcript.txt    # full agent CLI session (claude-code / codex), streamed to disk live
 runs/<id>/transcript.json   # chat-provider message log (recorder runs)
 runs/<id>/replay.json       # replay produced/used by this run
-runs/<id>/video/*.webm      # with --video
-cases/<name>.replay.json    # the canonical replay (updated on heal)
+runs/<id>/video/*.webm      # on by default; skipped with --no-video
+runs/<id>/screenshots/*.png # failed steps always; every step with --screenshots
+cases/<name>.replay.json    # the canonical replay (updated by approved or auto heals)
+heals.json                  # pending/resolved heal queue (review policy)
 ```
 
-Failed runs still get a `result.json` with the error in `explanation`, and agent CLI failures persist the captured stdout as the transcript.
+Failed runs still get a `result.json` with the error in `explanation`. The agent transcript is streamed to disk chunk by chunk, so it survives crashes and timeout kills; render it readably with `casepilot transcript <id>`.
 
 ## User-level Claude Code hooks/MCP poisoning headless runs
 

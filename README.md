@@ -2,7 +2,7 @@
 
 Provider-agnostic AI UI test runner. You describe a test case in plain English inside a small YAML file. An LLM provider drives a real browser (Playwright Chromium) once to **record** the case, producing a deterministic `replay.json`. Every run after that is a pure **replay**: same selectors, same assertions, zero LLM calls, exit code reflects the verdict.
 
-When the app changes and a recorded step breaks, a **healer** (any chat LLM) repairs only the broken step using the current page's accessibility snapshot, and the fixed step is written back into the replay. You only pay for intelligence when something is recorded or healed. Verdicts are never taken from the model's word: a server-side guard requires that the agent called the `report_result` tool and that every executed assertion actually passed.
+When the app changes and a recorded step breaks, a **healer** (any chat LLM) repairs only the broken step using the current page's accessibility snapshot; the fix is queued for review by default and written into the replay on approval (or immediately with `healPolicy: auto`). You only pay for intelligence when something is recorded or healed. Verdicts are never taken from the model's word: a server-side guard requires that the agent called the `report_result` tool and that every executed assertion actually passed.
 
 casepilot is provider-agnostic by contract. Tool-calling chat APIs (OpenAI, LM Studio, Ollama, OpenRouter, Anthropic) and agentic CLIs (Claude Code, Codex) plug into the same engine, and custom provider types can be registered at runtime. Recorded cases can be exported to plain Playwright spec files, so nothing locks you in.
 
@@ -58,14 +58,16 @@ npx casepilot export login
 
 | Feature | How |
 | --- | --- |
-| Natural-language cases | `cases/<name>.case.yaml` with `name`, `url`, `steps`, `expect` |
+| Natural-language cases | `cases/<name>.case.yaml` with `name`, `url`, `steps`, `expect`; steps may carry per-step expectations (`{do, expect}`) |
+| Host-portable cases | relative `url: /login` resolved against `--base-url` > `CASEPILOT_BASE_URL` > workspace `baseUrl:` |
 | Record once with any LLM | `casepilot record <case>` via chat API or agent CLI |
 | Deterministic free replays | `casepilot run <case>` replays `replay.json`, no LLM calls |
-| Self-healing | broken steps repaired by a chat LLM, `--no-heal` to disable |
+| Self-healing with review | broken steps repaired by a chat LLM and queued in `heals.json` for approval (`casepilot heals`, dashboard, or `healPolicy: auto`); `--no-heal` to disable |
 | Trustworthy verdicts | server-side assert guard, never the model's claim alone |
-| Video recording | `--video` on record and run |
+| Proof videos by default | every record/run leaves a video plus an idle-trimmed copy; opt out with `--no-video` / `--no-optimize-video` |
+| Watchable pacing | `--slow-mo` / `--step-delay` (dashboard Pace presets) for human-speed replays |
 | Playwright export | `casepilot export <case>` emits `<name>.spec.ts` |
-| REST server + dashboard | `casepilot serve` (port 7700) + Vite/React UI (port 7701) |
+| REST server + dashboard | `casepilot serve` (port 7700) + case-centric Vite/React UI (port 7701) |
 | Multi-project registry | `casepilot projects add/list/remove`, dashboard project switcher |
 | MCP integration | browser-tools bridge for agent CLIs, control server for external AI agents |
 | Extensible providers | `registerProviderType()` hook for custom provider types |

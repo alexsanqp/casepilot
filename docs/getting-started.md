@@ -69,7 +69,7 @@ expect:
   - The page url contains "/dashboard"
 ```
 
-All four keys are required; `steps` and `expect` are plain-English string lists. The file name (minus `.case.yaml`) is the case name used on the command line.
+All four keys are required; `steps` and `expect` are plain-English lists. A step may also be a `{do, expect}` object to verify expectations immediately after that step, and `url` may be a relative path like `/login` when a base URL is configured; see [case-format.md](case-format.md). The file name (minus `.case.yaml`) is the case name used on the command line.
 
 ## Record
 
@@ -88,9 +88,10 @@ runs/<runId>/replay.json         # the replay as produced by this run
 runs/<runId>/transcript.txt      # agent provider session transcript (agent CLIs)
 runs/<runId>/transcript.json     # chat message log (chat providers)
 runs/<runId>/video/*.webm        # on by default; skipped with --no-video
+runs/<runId>/screenshots/*.png   # with --screenshots (failed steps are always screenshotted)
 ```
 
-Run ids look like `20260611-142233-a1b2c3` (timestamp + random hex).
+Run ids look like `20260611-142233-a1b2c3` (timestamp + random hex). Long records print a heartbeat line to stderr every 15 seconds; after a failed agent record, `casepilot transcript <runId>` renders the session readably.
 
 ## Replay
 
@@ -99,6 +100,8 @@ npx casepilot run login
 ```
 
 No LLM is involved unless a step fails and healing kicks in (a chat provider must be configured; disable with `--no-heal`). The process exit code is 0 for passed, 1 for failed, so it drops straight into CI.
+
+By default a successful heal does not modify your recorded replay: it is queued in the workspace `heals.json` for review. Inspect and resolve the queue with `casepilot heals list` / `approve` / `reject`, or from the dashboard's Heals page. Set `healPolicy: auto` in `casepilot.config.yaml` (or pass `--heal-policy auto`) to apply heals immediately.
 
 ## Export
 
@@ -117,3 +120,5 @@ cd packages/dashboard && npm run dev  # web UI on http://localhost:7701 (proxies
 ```
 
 Without `--workspace`, the server serves every project registered via `casepilot projects add`. See [rest-api.md](rest-api.md) and [cli.md](cli.md).
+
+The dashboard is case-centric: the project root lists project cards (with a directory-picker backed "Browse" when adding one), the sidebar has Cases and Heals, and each case has a detail page with in-place definition editing, replay info, and its run history. Run details live under the case (`/p/<project>/cases/<name>/runs/<runId>`); a failed run shows a "Fix this case" panel (edit the definition, re-record, or review pending heals), and pending heals are approved or rejected from the Heals page.

@@ -3,13 +3,14 @@
 The `@casepilot/mcp` package ships one binary, `casepilot-mcp`, with two stdio MCP servers:
 
 ```
-casepilot-mcp browser-tools --case <path.case.yaml> --artifacts <dir> [--video] [--headed] [--base-url <url>]
+casepilot-mcp browser-tools --case <path.case.yaml> --artifacts <dir> [--video] [--headed] [--screenshots] [--viewport <WxH>] [--optimize-video] [--video-pad <ms>] [--slow-mo <ms>] [--base-url <url>]
 casepilot-mcp control --workspace <dir> [--server <url>]
+casepilot-mcp control --registry <projects.json> [--project <id>] [--server <url>]
 ```
 
 ## browser-tools (the recording bridge)
 
-`casepilot-mcp browser-tools` is the bridge that lets an **agent provider** (Claude Code, Codex) drive a real browser. You normally never start it yourself: the runner spawns the agent CLI with an MCP config pointing at this bridge, scoped to one case and one run directory.
+`casepilot-mcp browser-tools` is the bridge that lets an **agent provider** (Claude Code, Codex) drive a real browser. You normally never start it yourself: the runner spawns the agent CLI with an MCP config pointing at this bridge, scoped to one case and one run directory, and forwards the run options as flags (`--video`, `--headed`, `--screenshots`, `--viewport <WxH>`, `--optimize-video`, `--video-pad <ms>`, `--slow-mo <ms>`, `--base-url <url>`).
 
 Key behavior:
 
@@ -33,12 +34,15 @@ Tools:
 
 `casepilot-mcp control --workspace <dir>` exposes a casepilot workspace to any MCP client, so an assistant like Claude Code can write, run, and inspect UI tests.
 
+Instead of `--workspace`, the workspace can come from the multi-project registry: `--registry <projects.json>` resolves it from the registry (`--project <id>` picks the project, default: the project `default` if registered, otherwise the first entry) and additionally exposes a `list_projects` tool. One of `--workspace` / `--registry` is required.
+
 With `--server <url>` it forwards `run_case`/`get_report` to a running casepilot REST server instead of running in-process. That is required for recording with agent providers: in-process `run_case` only supports chat providers and replays, and returns an explanatory error for agent providers.
 
 Tools:
 
 | Tool | Parameters | Purpose |
 | --- | --- | --- |
+| `list_projects` | - | (registry mode only) registered projects with id, name, path |
 | `list_cases` | - | list cases with url, `hasReplay`, file path |
 | `get_case` | `name` | parsed spec + raw YAML + replay if recorded |
 | `upsert_case` | `name`, `yaml` | validate and save `cases/<name>.case.yaml` |
