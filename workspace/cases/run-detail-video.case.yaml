@@ -9,5 +9,5 @@ steps:
   - In the "Steps" table, click the row of the second step
 expect:
   - A video player with browser controls is rendered in the Video section
-  - Clicking the step row highlighted it and moved the video playhead to that step's offset
+  - The clicked step row becomes the current row (aria-current="true" on the row)
   - A "Download video" link is shown below the player

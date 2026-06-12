@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "case": "run-detail-video",
+  "url": "/",
+  "providerUsed": "agent",
+  "recordedAt": "2026-06-12T20:00:52.033Z",
+  "steps": [
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=link[name=\"casepilot\"]",
+      "note": "Step 1: Click the casepilot project name on its project card"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=link[name=\"projects-list\"]",
+      "note": "Step 2: Click the case name link \"projects-list\" in the table"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=row[name=\"run 20260612-190947-5c4d3e\"]",
+      "note": "Step 4: Open a finished run that was recorded with video enabled"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=link[name=\"← case projects-list\"]",
+      "note": "Go back to case detail page"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=row[name=\"run 20260612-182128-105569\"]",
+      "note": "Step 4: Open a run with longer duration that may have video"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=heading[name=\"Video\"]",
+      "note": "Step 5: Wait for the Video section to appear"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=row[name=\"1 assert visible View screenshot for step 1 role=heading[name=\\\"Projects\\\"] passed 39ms\"]",
+      "note": "Step 6: Click the row of the second step in the Steps table"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "video",
+      "note": "Expectation 1: A video player with browser controls is rendered in the Video section"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "tr[aria-current=\"true\"]",
+      "note": "Expectation 2: The clicked step row becomes the current row (aria-current=true)"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=link[name=\"Download video\"]",
+      "note": "Expectation 3: A Download video link is shown below the player"
+    }
+  ],
+  "meta": {
+    "healCount": 0
+  }
+}
