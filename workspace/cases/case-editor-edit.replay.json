@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "case": "case-editor-edit",
+  "url": "/",
+  "providerUsed": "agent",
+  "recordedAt": "2026-06-12T17:19:37.195Z",
+  "steps": [
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "value": "2000",
+      "note": "Wait for projects to load"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=link[name=\"demo-workspace\"]",
+      "note": "Step 1: Click the demo-workspace project name"
+    },
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "value": "2000",
+      "note": "Step 2: Wait for cases table to appear"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=link[name=\"example\"]",
+      "note": "Step 3: Click the \"example\" case name link in the table"
+    },
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "value": "2000",
+      "note": "Step 4: Wait for case detail page"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=button[name=\"Edit\"]",
+      "note": "Step 5: Click the Edit button in the Definition section header"
+    },
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "value": "1000",
+      "note": "Step 6: Wait for Spec YAML textarea"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "textarea",
+      "note": "Expectation 1a: Spec YAML textarea is visible"
+    },
+    {
+      "kind": "assert",
+      "assert": "textPresent",
+      "text": "name: example",
+      "note": "Expectation 1b: textarea contains \"name: example\""
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=button[name=\"Cancel\"]",
+      "note": "Step 7: Click the Cancel button"
+    },
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "value": "1000",
+      "note": "Wait for editor to close"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=button[name=\"Edit\"]",
+      "note": "Expectation 2a: Edit button is back after Cancel"
+    },
+    {
+      "kind": "assert",
+      "assert": "absent",
+      "selector": "textarea",
+      "note": "Expectation 2b: Spec YAML textarea is gone after Cancel"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=heading[name=\"Steps\"]",
+      "note": "Expectation 2c: Steps heading visible in read-only Definition"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=heading[name=\"Expect\"]",
+      "note": "Expectation 2d: Expect heading visible in read-only Definition"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=heading[name=\"Replay\"]",
+      "note": "Expectation 3a: Replay section is visible on case detail page"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=heading[name=\"Run history\"]",
+      "note": "Expectation 3b: Run history section is visible on case detail page"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=heading[name=\"example\"]",
+      "note": "Expectation 3c: Still on the case detail page for \"example\""
+    }
+  ],
+  "meta": {
+    "healCount": 0
+  }
+}

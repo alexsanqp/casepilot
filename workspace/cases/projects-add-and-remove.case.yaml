@@ -3,7 +3,7 @@ url: /
 steps:
   - Scroll down to the "Add project" section
   - Type "selftest-temp" into the "Name" input of the add project form
-  - Type "C:\DISK_D\Projects\casepilot\demo-workspace" into the "Absolute path" input
+  - Type "C:\DISK_D\Projects\casepilot\packages" into the "Absolute path" input
   - Click the "Add project" button
   - Wait for a project card named "selftest-temp" to appear in the project grid
   - Click the "Remove" button on the "selftest-temp" project card

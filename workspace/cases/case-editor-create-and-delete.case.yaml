@@ -7,8 +7,10 @@ steps:
   - Type "selftest-editor-temp" into the "Name" input
   - 'Verify the "Spec YAML" textarea is pre-filled with a template starting with "name: my-case"'
   - Click the "Save" button
-  - Wait for the cases table to show a row named "selftest-editor-temp"
-  - In the row for "selftest-editor-temp", click the "Delete" button and accept the confirmation dialog
+  - Wait for the case detail page with the "selftest-editor-temp" heading and the "Definition" section
+  - Click the "Delete" button in the action bar at the top of the case detail page and accept the confirmation dialog
+  - Wait for the cases table to appear
 expect:
-  - The cases table no longer contains a row named "selftest-editor-temp"
-  - The rows for "example" and "sprset46-project-tag-limit" are still present
+  - After Save the page navigated to the detail page for "selftest-editor-temp" with Definition, Replay and Run history sections
+  - After Delete the page navigated back to the cases table, which no longer contains a row named "selftest-editor-temp"
+  - The row for "example" is still present

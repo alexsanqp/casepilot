@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "case": "heals-history-toggle",
+  "url": "/",
+  "providerUsed": "agent",
+  "recordedAt": "2026-06-12T14:49:46.260Z",
+  "steps": [
+    {
+      "kind": "act",
+      "action": "fill",
+      "selector": "role=textbox[name=\"Name\"]",
+      "value": "demo-workspace",
+      "note": "Fill project name as demo-workspace"
+    },
+    {
+      "kind": "act",
+      "action": "fill",
+      "selector": "role=textbox[name=\"Absolute path Browse\"]",
+      "value": "C:\\DISK_D\\Projects\\casepilot\\demo-workspace",
+      "note": "Fill absolute path for demo-workspace"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=button[name=\"Add project\"]",
+      "note": "Submit the add project form"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=link[name=\"demo-workspace\"]",
+      "note": "Step 1: Click the demo-workspace project name"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=link[name=\"Heals\"]",
+      "note": "Step 2: Click the Heals link in sidebar navigation"
+    },
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "selector": "role=heading[name=\"Heals\"]",
+      "value": "5000",
+      "note": "Step 3: Wait for the Heals heading to appear"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=checkbox[name=\"History\"]",
+      "note": "Step 4: Check the History checkbox in the page header"
+    },
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "selector": "role=main",
+      "value": "2000",
+      "note": "Step 5: Wait for the list to refresh after enabling History"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=checkbox[name=\"History\"]",
+      "note": "History checkbox is checked"
+    },
+    {
+      "kind": "assert",
+      "assert": "textPresent",
+      "text": "approved",
+      "note": "Expectation 1: resolved heals show approved status badge"
+    },
+    {
+      "kind": "assert",
+      "assert": "textPresent",
+      "text": "rejected",
+      "note": "Expectation 1: resolved heals also show rejected status badge"
+    },
+    {
+      "kind": "assert",
+      "assert": "absent",
+      "selector": "role=button[name=\"Approve\"]",
+      "note": "Expectation 1: Approve button absent in history mode"
+    },
+    {
+      "kind": "assert",
+      "assert": "absent",
+      "selector": "role=button[name=\"Reject\"]",
+      "note": "Expectation 1: Reject button absent in history mode"
+    },
+    {
+      "kind": "assert",
+      "assert": "textPresent",
+      "text": "14:24:43",
+      "note": "Expectation 2: resolution timestamp present next to approved status badge"
+    }
+  ],
+  "meta": {
+    "healCount": 0
+  }
+}

@@ -6,7 +6,7 @@ steps:
   - Find the table row for the case named "projects-list"
   - Find the table row for the case named "heal-approve"
 expect:
-  - The cases table has columns "Name", "URL", "Steps", "Replay", "Last verdict" and "Actions"
+  - The cases table has columns "Name", "URL", "Steps", "Replay", "Last run" and "Actions"
   - The cases table lists 24 case rows
   - The row for "projects-list" shows a "replay" badge in the Replay column and its action button reads "Re-record"
   - The row for "heal-approve" shows a dash in the Replay column and its action button reads "Record"

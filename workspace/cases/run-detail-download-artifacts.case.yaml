@@ -1,10 +1,10 @@
 name: run-detail-download-artifacts
 url: /
 steps:
-  - Click the "demo-workspace" project name on its project card
-  - Click the "Runs" link in the sidebar navigation
-  - Wait for the runs table to appear
-  - Click the first finished run row in the runs table
+  - Click the "casepilot" project name on its project card
+  - Click the case name link "cases-list" in the table
+  - Wait for the "Run history" section on the case detail page
+  - Click the first finished row in the run history table
   - Wait for the PASS or FAIL banner to appear
   - Click the "Download artifacts" button in the banner
 expect:

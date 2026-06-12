@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   BrowserRouter,
   Link,
@@ -11,7 +11,7 @@ import {
   useNavigate,
   useParams,
 } from 'react-router-dom';
-import { getHealth, listHeals } from './api/client';
+import { getHealth, listHeals, listRuns } from './api/client';
 import { usePolling } from './hooks/usePolling';
 import { CaseDetailPage } from './pages/CaseDetailPage';
 import { CaseEditorPage } from './pages/CaseEditorPage';
@@ -19,7 +19,6 @@ import { CasesPage } from './pages/CasesPage';
 import { HealsPage } from './pages/HealsPage';
 import { ProjectsPage } from './pages/ProjectsPage';
 import { RunDetailPage } from './pages/RunDetailPage';
-import { RunsPage } from './pages/RunsPage';
 import { ProjectsProvider, useProjects } from './state/projects';
 import { RunToastsProvider } from './state/runToasts';
 
@@ -90,9 +89,6 @@ function Sidebar() {
           <NavLink to={`/p/${encodeURIComponent(projectId)}/cases`} end={false}>
             Cases
           </NavLink>
-          <NavLink to={`/p/${encodeURIComponent(projectId)}/runs`} end={false}>
-            Runs
-          </NavLink>
           <HealsNavLink projectId={projectId} />
         </nav>
       )}
@@ -109,6 +105,38 @@ function CaseEditRedirect() {
       replace
     />
   );
+}
+
+function LegacyRunRedirect() {
+  const { projectId = '', id = '' } = useParams<{ projectId: string; id: string }>();
+  const navigate = useNavigate();
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const base = `/p/${encodeURIComponent(projectId)}`;
+    listRuns(projectId)
+      .then((runs) => {
+        if (cancelled) return;
+        const run = runs.find((r) => r.runId === id);
+        if (run) {
+          navigate(`${base}/cases/${encodeURIComponent(run.case)}/runs/${encodeURIComponent(id)}`, {
+            replace: true,
+          });
+        } else {
+          setFailed(true);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, id, navigate]);
+
+  if (failed) return <Navigate to={`/p/${encodeURIComponent(projectId)}/cases`} replace />;
+  return <p className="muted">Loading run…</p>;
 }
 
 function ProjectScopeLayout() {
@@ -144,8 +172,9 @@ export function App() {
                 <Route path="cases/new" element={<CaseEditorPage />} />
                 <Route path="cases/:name" element={<CaseDetailPage />} />
                 <Route path="cases/:name/edit" element={<CaseEditRedirect />} />
-                <Route path="runs" element={<RunsPage />} />
-                <Route path="runs/:id" element={<RunDetailPage />} />
+                <Route path="cases/:name/runs/:runId" element={<RunDetailPage />} />
+                <Route path="runs" element={<Navigate to="../cases" replace />} />
+                <Route path="runs/:id" element={<LegacyRunRedirect />} />
                 <Route path="heals" element={<HealsPage />} />
               </Route>
               <Route path="*" element={<p className="muted">Page not found.</p>} />

@@ -46,7 +46,7 @@ export function CaseActions({
   const started = (runId: string) => {
     trackRun({ projectId, runId, caseName });
     if (onStarted) onStarted();
-    else navigate(`/p/${encodeURIComponent(projectId)}/runs`);
+    else navigate(`/p/${encodeURIComponent(projectId)}/cases/${encodeURIComponent(caseName)}`);
   };
 
   const runReplay = () =>

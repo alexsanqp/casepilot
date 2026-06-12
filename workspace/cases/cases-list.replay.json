@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "case": "cases-list",
+  "url": "/",
+  "providerUsed": "agent",
+  "recordedAt": "2026-06-12T13:50:23.546Z",
+  "steps": [
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "value": "2000",
+      "note": "Wait for projects list to load"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=link[name=\"casepilot\"]",
+      "note": "Click the casepilot project name on its project card"
+    },
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "value": "2000",
+      "note": "Wait for Cases page to load"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=heading[name=\"Cases\"]",
+      "note": "Cases heading is visible"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=columnheader[name=\"Name\"]",
+      "note": "Column header Name is visible"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=columnheader[name=\"URL\"]",
+      "note": "Column header URL is visible"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=columnheader[name=\"Steps\"]",
+      "note": "Column header Steps is visible"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=columnheader[name=\"Replay\"]",
+      "note": "Column header Replay is visible"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=columnheader[name=\"Last verdict\"]",
+      "note": "Column header Last verdict is visible"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=columnheader[name=\"Actions\"]",
+      "note": "Column header Actions is visible"
+    },
+    {
+      "kind": "act",
+      "action": "scroll",
+      "selector": "main",
+      "value": "down",
+      "note": "Scroll down to see remaining table rows"
+    },
+    {
+      "kind": "assert",
+      "assert": "textPresent",
+      "selector": "role=link[name=\"projects-list\"]",
+      "text": "projects-list",
+      "note": "projects-list row is present in the table"
+    },
+    {
+      "kind": "act",
+      "action": "scroll",
+      "selector": "main",
+      "value": "down",
+      "note": "Scroll further down to see all remaining rows"
+    },
+    {
+      "kind": "act",
+      "action": "scroll",
+      "selector": "main",
+      "value": "down",
+      "note": "Scroll to bottom of page"
+    },
+    {
+      "kind": "act",
+      "action": "press",
+      "selector": "body",
+      "value": "End",
+      "note": "Jump to bottom of page to see last rows"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "table tbody tr:nth-child(24)",
+      "note": "24th data row exists in the cases table"
+    },
+    {
+      "kind": "assert",
+      "assert": "absent",
+      "selector": "table tbody tr:nth-child(25)",
+      "note": "No 25th row exists - confirming exactly 24 rows"
+    },
+    {
+      "kind": "assert",
+      "assert": "textPresent",
+      "selector": "table tbody tr:has(td a[href=\"/p/casepilot/cases/projects-list/edit\"]) td:nth-child(4)",
+      "text": "replay",
+      "note": "projects-list row Replay column shows replay badge"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "table tbody tr:has(td a[href=\"/p/casepilot/cases/projects-list/edit\"]) button:has-text(\"Re-record\")",
+      "note": "projects-list row action button reads Re-record"
+    },
+    {
+      "kind": "assert",
+      "assert": "textPresent",
+      "selector": "table tbody tr:has(td a[href=\"/p/casepilot/cases/heal-approve/edit\"]) td:nth-child(4)",
+      "text": "-",
+      "note": "heal-approve row Replay column shows dash"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "table tbody tr:has(td a[href=\"/p/casepilot/cases/heal-approve/edit\"]) button:has-text(\"Record\")",
+      "note": "heal-approve row action button reads Record"
+    }
+  ],
+  "meta": {
+    "healCount": 0
+  }
+}

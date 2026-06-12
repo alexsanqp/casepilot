@@ -20,8 +20,11 @@ import { runDuration } from '../lib/format';
 import { stripAnsi } from '../lib/ansi';
 
 export function RunDetailPage() {
-  const { projectId = '', id } = useParams<{ projectId: string; id: string }>();
-  const runId = id ?? '';
+  const {
+    projectId = '',
+    name = '',
+    runId = '',
+  } = useParams<{ projectId: string; name: string; runId: string }>();
 
   const fetchRun = useCallback(() => getRun(projectId, runId), [projectId, runId]);
   const [intervalMs, setIntervalMs] = useState<number | null>(2000);
@@ -33,8 +36,6 @@ export function RunDetailPage() {
 
   if (!runId) return <p className="message message-error">Missing run id.</p>;
 
-  const caseName = run?.result?.case;
-
   return (
     <div>
       <div className="page-header">
@@ -42,16 +43,11 @@ export function RunDetailPage() {
           Run <code>{runId}</code>
         </h1>
         <span className="header-links">
-          {caseName && (
-            <Link
-              className="link"
-              to={`/p/${encodeURIComponent(projectId)}/cases/${encodeURIComponent(caseName)}`}
-            >
-              ← case {caseName}
-            </Link>
-          )}
-          <Link className="link" to={`/p/${encodeURIComponent(projectId)}/runs`}>
-            All runs
+          <Link
+            className="link"
+            to={`/p/${encodeURIComponent(projectId)}/cases/${encodeURIComponent(name)}`}
+          >
+            ← case {name}
           </Link>
         </span>
       </div>
@@ -166,7 +162,7 @@ function FixPanel({ projectId, caseName }: { projectId: string; caseName: string
     try {
       const { runId } = await startRun(projectId, { case: caseName, mode: 'record' });
       trackRun({ projectId, runId, caseName });
-      navigate(`${basePath}/runs`);
+      navigate(casePath);
     } catch (err) {
       setError(errorMessage(err));
     } finally {

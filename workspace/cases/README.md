@@ -47,20 +47,20 @@ casepilot --workspace C:\DISK_D\Projects\casepilot\workspace report <runId>  # f
 | `projects-add-invalid-path` | Submitting a non-existent path shows an error and adds nothing. |
 | `projects-browse-directory` | Browse opens the Select directory modal and selection fills the path input. |
 | `project-switcher` | Sidebar project dropdown switches into a project and back to All projects. |
-| `navigation-sidebar` | Sidebar links route to Cases, Runs and Heals; health indicator shows online. |
+| `navigation-sidebar` | Sidebar links route to Cases and Heals; health indicator shows online. |
 | `unknown-route` | Unknown URL renders the "Page not found." fallback. |
 | `cases-list` | Cases table columns, replay badge and Record vs Re-record labels per row. |
 | `run-options-popover` | Options panel toggles: video, optimize video (disabled until video), screenshots, custom viewport, heal policy. |
 | `run-button-states` | Run is disabled without a replay (with tooltip) and enabled for a recorded case; provider dropdown present. |
-| `run-start-replay` | Run button starts a replay run and lands on the Runs page with a running row. |
-| `case-editor-create-and-delete` | New case editor with YAML template, save, then delete the case from the table. |
-| `case-editor-edit` | Opening an existing case in the editor (name locked) and cancelling back to the list. |
+| `run-start-replay` | Run from the case page starts a replay and a running row appears in the case run history. |
+| `case-editor-create-and-delete` | New case editor with YAML template, save lands on the case page, then delete from its action bar. |
+| `case-editor-edit` | In-place definition editing on the case page and cancelling back to the read-only view. |
 | `case-export-modal` | Export shows the generated Playwright spec in a modal with a Copy button. |
-| `runs-list` | Runs table columns, badges and the Refresh button. |
+| `case-run-history` | Run history on the case page: columns, badges, newest first, row click opens the nested run detail. |
 | `run-detail-steps` | Run detail banner (PASS/FAIL, explanation) and the step table with statuses and durations. |
 | `run-detail-video` | Video player renders for a video run; clicking a step row seeks the video; Download video link. |
 | `run-detail-video-optimized-toggle` | original/optimized toggle when an optimized video exists; timeline markers on original. |
-| `run-detail-collapsibles` | Transcript and Replay JSON collapsible sections lazy-load content; back link to all runs. |
+| `run-detail-collapsibles` | Transcript and Replay JSON collapsible sections lazy-load content; back link to the case page. |
 | `run-detail-download-artifacts` | Download artifacts button serves the run archive zip. |
 | `heals-pending-list` | Pending heals listed with old/new diff; sidebar badge count matches. |
 | `heal-approve` | Approving a pending heal removes it from the list and updates the badge. |

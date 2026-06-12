@@ -113,7 +113,11 @@ export function CasesPage() {
                   {c.hasReplay ? <Badge tone="blue">replay</Badge> : <span className="muted">-</span>}
                 </td>
                 <td>
-                  <LastRunCell lastRun={c.lastRun ?? fallbackLastRuns[c.name]} />
+                  <LastRunCell
+                    projectId={projectId}
+                    caseName={c.name}
+                    lastRun={c.lastRun ?? fallbackLastRuns[c.name]}
+                  />
                 </td>
                 <td className="actions-cell">
                   <CaseActions
@@ -141,12 +145,26 @@ export function CasesPage() {
   );
 }
 
-function LastRunCell({ lastRun }: { lastRun: CaseLastRun | undefined }) {
+function LastRunCell({
+  projectId,
+  caseName,
+  lastRun,
+}: {
+  projectId: string;
+  caseName: string;
+  lastRun: CaseLastRun | undefined;
+}) {
   if (!lastRun) return <span className="muted">-</span>;
   if (lastRun.status === 'running') return <span className="running-text">running…</span>;
   return (
     <span className="last-run-cell">
-      <VerdictBadge verdict={lastRun.verdict} />
+      <Link
+        className="link"
+        to={`/p/${encodeURIComponent(projectId)}/cases/${encodeURIComponent(caseName)}/runs/${encodeURIComponent(lastRun.id)}`}
+        title="Open the last run"
+      >
+        <VerdictBadge verdict={lastRun.verdict} />
+      </Link>
       {lastRun.finishedAt && <span className="muted">{relativeTime(lastRun.finishedAt)}</span>}
     </span>
   );

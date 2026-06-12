@@ -3,11 +3,13 @@ url: /
 steps:
   - Click the "casepilot" project name on its project card
   - Wait for the cases table to appear
-  - In the row for the case "projects-list", click the "Export" button
-  - 'Wait for the "Export: projects-list" modal to open'
+  - Click the case name link "project-switcher" in the table
+  - Wait for the case detail page with the "project-switcher" heading
+  - Click the "Export" button in the action bar
+  - 'Wait for the "Export: project-switcher" modal to open'
   - Click the "Copy" button in the modal
   - Close the modal
 expect:
   - The export modal showed a code block containing a generated Playwright spec
   - After clicking Copy the button label briefly changed to "Copied"
-  - The modal is closed and the cases table is visible again
+  - The modal is closed and the case detail page is visible again

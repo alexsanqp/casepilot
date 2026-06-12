@@ -98,7 +98,7 @@ export function RunToastsProvider({ children }: { children: ReactNode }) {
                 <div>
                   <Link
                     className="link"
-                    to={`/p/${encodeURIComponent(t.projectId)}/runs/${encodeURIComponent(t.runId)}`}
+                    to={`/p/${encodeURIComponent(t.projectId)}/cases/${encodeURIComponent(t.caseName)}/runs/${encodeURIComponent(t.runId)}`}
                     onClick={() => dismiss(t.runId)}
                   >
                     View run

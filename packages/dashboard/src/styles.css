@@ -352,6 +352,10 @@ code {
   animation: pulse 1.2s ease-in-out infinite;
 }
 
+.row-running td {
+  background: color-mix(in srgb, var(--amber) 8%, transparent);
+}
+
 @keyframes pulse {
   0%,
   100% {

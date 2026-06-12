@@ -4,9 +4,11 @@ steps:
   - Click the "demo-workspace" project name on its project card
   - Wait for the cases table to appear
   - Click the case name link "example" in the table
-  - 'Wait for the "Edit case: example" heading to appear'
+  - Wait for the case detail page with the "example" heading and the "Definition" section
+  - Click the "Edit" button in the Definition section header
+  - Wait for the "Spec YAML" textarea to appear
   - Click the "Cancel" button
 expect:
   - 'The editor showed the case YAML in the "Spec YAML" textarea, including "name: example"'
-  - The "Name" input was disabled in edit mode
-  - After Cancel the page is back on the cases table with the "Cases" heading
+  - After Cancel the Definition section shows the read-only "Steps" and "Expect" lists again with the "Edit" button back
+  - The page is still the case detail page for "example" with its "Replay" and "Run history" sections visible

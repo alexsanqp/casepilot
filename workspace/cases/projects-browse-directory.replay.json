@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "case": "projects-browse-directory",
+  "url": "/",
+  "providerUsed": "agent",
+  "recordedAt": "2026-06-12T13:57:42.873Z",
+  "steps": [
+    {
+      "kind": "act",
+      "action": "scroll",
+      "selector": "role=heading[name=\"Add project\"]",
+      "note": "Step 1: Scroll down to the Add project section"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=button[name=\"Browse\"]",
+      "note": "Step 2: Click the Browse button next to the Absolute path input"
+    },
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "selector": "text=\"Select directory\"",
+      "value": "3000",
+      "note": "Step 3: Wait for the Select directory modal to open"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=button[name=\"C:\"]",
+      "note": "Step 4: Click the first directory entry (C:) in the directory list"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=button[name=\"Select\"]",
+      "note": "Step 5: Click the Select button in the modal"
+    },
+    {
+      "kind": "assert",
+      "assert": "absent",
+      "selector": "role=dialog[name=\"Select directory\"]",
+      "note": "Expectation 1: The Select directory modal is closed"
+    },
+    {
+      "kind": "assert",
+      "assert": "valueEquals",
+      "selector": "role=textbox[name=\"Absolute path Browse\"]",
+      "text": "C:\\",
+      "note": "Expectation 2: The Absolute path input contains the path of the selected directory (C:\\)"
+    }
+  ],
+  "meta": {
+    "healCount": 0
+  }
+}

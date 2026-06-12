@@ -152,6 +152,7 @@ export function CaseDetailPage() {
               <tr>
                 <th>Run</th>
                 <th>Mode</th>
+                <th>Provider</th>
                 <th>Status</th>
                 <th>Verdict</th>
                 <th>Duration</th>
@@ -164,10 +165,10 @@ export function CaseDetailPage() {
                 .map((r) => (
                   <tr
                     key={r.runId}
-                    className="clickable"
+                    className={r.status === 'running' ? 'clickable row-running' : 'clickable'}
                     onClick={() =>
                       navigate(
-                        `/p/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(r.runId)}`,
+                        `/p/${encodeURIComponent(projectId)}/cases/${encodeURIComponent(name)}/runs/${encodeURIComponent(r.runId)}`,
                       )
                     }
                   >
@@ -177,6 +178,7 @@ export function CaseDetailPage() {
                     <td>
                       <ModeBadge mode={r.mode} />
                     </td>
+                    <td>{r.provider}</td>
                     <td>
                       {r.status === 'running' ? (
                         <span className="running-text">running…</span>

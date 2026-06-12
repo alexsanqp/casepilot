@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "case": "run-button-states",
+  "url": "/",
+  "providerUsed": "agent",
+  "recordedAt": "2026-06-12T13:54:19.497Z",
+  "steps": [
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "selector": "text=casepilot",
+      "value": "5000",
+      "note": "Wait for casepilot project to appear"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=link[name=\"casepilot\"]",
+      "note": "Click the casepilot project name on its project card"
+    },
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "selector": "role=table",
+      "value": "5000",
+      "note": "Wait for cases table to appear"
+    },
+    {
+      "kind": "act",
+      "action": "scroll",
+      "selector": "tr:has(a[href*=\"/heal-approve/\"]) button:has-text(\"Run\")",
+      "note": "Hover over the disabled Run button in the heal-approve row"
+    },
+    {
+      "kind": "act",
+      "action": "scroll",
+      "selector": "tr:has(a[href*=\"/projects-list/\"]) button:has-text(\"Run\")",
+      "note": "Hover over the enabled Run button in the projects-list row"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "tr:has(a[href*=\"/heal-approve/\"]) button[disabled]",
+      "note": "Run button for heal-approve is disabled"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "tr:has(a[href*=\"/projects-list/\"]) button:not([disabled]):has-text(\"Run\")",
+      "note": "Run button for projects-list is enabled"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "tr:has(a[href*=\"/heal-approve/\"]) button[title=\"No replay recorded yet\"]",
+      "note": "Disabled Run button for heal-approve has tooltip No replay recorded yet"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "tr:has(a[href*=\"/projects-list/\"]) button[title=\"Replay the recorded steps\"]",
+      "note": "Enabled Run button for projects-list has tooltip Replay the recorded steps"
+    },
+    {
+      "kind": "assert",
+      "assert": "textPresent",
+      "text": "claude-code",
+      "note": "Provider dropdown with claude-code option is present in rows"
+    }
+  ],
+  "meta": {
+    "healCount": 0
+  }
+}

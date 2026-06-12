@@ -1,11 +1,12 @@
 name: run-start-replay
 url: /
 steps:
-  - Click the "demo-workspace" project name on its project card
+  - Click the "casepilot" project name on its project card
   - Wait for the cases table to appear
-  - In the row for the case "sprset46-project-tag-limit", click the "Run" button
-  - Wait for the "Runs" heading to appear
+  - Click the case name link "projects-list" in the table
+  - Wait for the case detail page with the "projects-list" heading
+  - Click the "Run" button in the action bar
+  - Wait until a new row appears at the top of the "Run history" table
 expect:
-  - The page url contains "/runs"
-  - The runs table shows a run for case "sprset46-project-tag-limit" at the top with status "running…" or a finished status
-  - The new run row shows a "replay" mode badge
+  - The page stayed on the case detail page after clicking Run
+  - The newest run history row shows a "replay" mode badge and status "running…" or a finished status
