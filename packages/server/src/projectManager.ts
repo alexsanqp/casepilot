@@ -1,9 +1,8 @@
 import path from 'node:path';
-import { mkdir } from 'node:fs/promises';
 import type { RunnerDeps } from './runner.js';
 import { RunRegistry } from './runs.js';
 import { RunService } from './service.js';
-import { casesDir, listCases, runsDir } from './workspace.js';
+import { listCases, runsDir } from './workspace.js';
 import { loadProjects, registerProject, removeProject, type Project } from './projects.js';
 
 export interface ProjectContext {
@@ -64,8 +63,6 @@ export class ProjectManager {
     const workspace = path.resolve(project.path);
     const cached = this.contexts.get(id);
     if (cached && cached.workspace === workspace) return cached;
-    await mkdir(casesDir(workspace), { recursive: true });
-    await mkdir(runsDir(workspace), { recursive: true });
     const registry = await RunRegistry.open(runsDir(workspace));
     const service = new RunService(workspace, registry, this.options.deps);
     const context: ProjectContext = { project, workspace, registry, service };

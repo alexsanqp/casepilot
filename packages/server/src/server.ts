@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { mkdir } from 'node:fs/promises';
 import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
@@ -7,7 +8,7 @@ import { defaultRunnerDeps, type RunnerDeps } from './runner.js';
 import type { RunRegistry } from './runs.js';
 import type { RunService } from './service.js';
 import { registerApiRoutes } from './routes.js';
-import { defaultRegistryPath } from './projects.js';
+import { defaultRegistryPath, ensureWorkspaceScaffold } from './projects.js';
 import { ProjectManager } from './projectManager.js';
 import { runsDir } from './workspace.js';
 
@@ -33,9 +34,16 @@ export interface ServerOptions {
 
 export async function createServer(options: ServerOptions = {}): Promise<FastifyInstance> {
   const deps: RunnerDeps = { ...defaultRunnerDeps(), ...options.deps };
+  const defaultWorkspace = options.workspace ? path.resolve(options.workspace) : undefined;
+  if (defaultWorkspace) {
+    // The implicit "default" project gets the same workspace scaffolding as add-project;
+    // runs/ must also exist because it backs the static /artifacts/ root below.
+    await ensureWorkspaceScaffold(defaultWorkspace);
+    await mkdir(runsDir(defaultWorkspace), { recursive: true });
+  }
   const manager = new ProjectManager({
     registryPath: options.registryPath ?? defaultRegistryPath(),
-    defaultWorkspace: options.workspace ? path.resolve(options.workspace) : undefined,
+    defaultWorkspace,
     deps,
   });
 

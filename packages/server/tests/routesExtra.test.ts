@@ -71,6 +71,7 @@ afterEach(async () => {
 async function setup(engineOverrides?: Partial<RunEngine>) {
   const workspace = await mkdtemp(path.join(os.tmpdir(), 'cp-routes-'));
   await mkdir(path.join(workspace, 'cases'), { recursive: true });
+  await writeFile(path.join(workspace, 'casepilot.config.yaml'), 'providers: []\n', 'utf8');
   await writeFile(path.join(workspace, 'cases', 'login.case.yaml'), CASE_YAML, 'utf8');
   await writeFile(path.join(workspace, 'cases', 'login.replay.json'), JSON.stringify(makeReplay(), null, 2), 'utf8');
   const engine: RunEngine = {

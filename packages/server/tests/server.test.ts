@@ -1,6 +1,6 @@
 import path from 'node:path';
 import os from 'node:os';
-import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, stat, writeFile } from 'node:fs/promises';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import type { AgentProvider, ChatProvider, Provider, ReplayFile, RunResult } from '@casepilot/core';
@@ -68,6 +68,14 @@ function makeRegistry(providers: Provider[], defaultId: string): ProviderRegistr
   };
 }
 
+async function dirExists(dirPath: string): Promise<boolean> {
+  try {
+    return (await stat(dirPath)).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
 const openApps: FastifyInstance[] = [];
 
 afterEach(async () => {
@@ -82,6 +90,7 @@ async function setup(overrides?: {
 }) {
   const workspace = await mkdtemp(path.join(os.tmpdir(), 'cp-server-'));
   await mkdir(path.join(workspace, 'cases'), { recursive: true });
+  await writeFile(path.join(workspace, 'casepilot.config.yaml'), 'providers: []\n', 'utf8');
   await writeFile(path.join(workspace, 'cases', 'login.case.yaml'), CASE_YAML, 'utf8');
   if (overrides?.withReplay) {
     await writeFile(
@@ -332,8 +341,8 @@ describe('run lifecycle', () => {
     expect(transcript.body).toBe('agent transcript text');
   });
 
-  it('marks the run as error when the engine throws', async () => {
-    const { app } = await setup({
+  it('reports an engine throw as done+failed, matching what a disk reload shows', async () => {
+    const { app, workspace } = await setup({
       engine: {
         recordCase: vi.fn(async () => {
           throw new Error('provider exploded');
@@ -348,8 +357,49 @@ describe('run lifecycle', () => {
     const { runId } = res.json() as { runId: string };
     await app.runService.settled(runId);
 
+    const live = (await app.inject({ method: 'GET', url: `/api/runs/${runId}` })).json() as {
+      status: string;
+      error?: string;
+      result?: RunResult;
+    };
+    expect(live).toMatchObject({
+      status: 'done',
+      error: 'provider exploded',
+      result: { verdict: 'failed', explanation: 'provider exploded' },
+    });
+
+    const list = await app.inject({ method: 'GET', url: '/api/runs' });
+    expect(list.json()).toEqual([expect.objectContaining({ runId, status: 'done', verdict: 'failed' })]);
+
+    const rebooted = await createServer({
+      workspace,
+      registryPath: path.join(await mkdtemp(path.join(os.tmpdir(), 'cp-reg-')), 'projects.json'),
+      deps: {
+        engine: { recordCase: vi.fn(), replayCase: vi.fn() } as unknown as RunEngine,
+        loadRegistry: async () => makeRegistry([chatProvider], 'fake-chat'),
+        resolveMcpBin: () => 'unused',
+      },
+    });
+    openApps.push(rebooted);
+    const reloaded = (await rebooted.inject({ method: 'GET', url: `/api/runs/${runId}` })).json() as {
+      status: string;
+      result?: RunResult;
+    };
+    expect(reloaded.status).toBe(live.status);
+    expect(reloaded.result?.verdict).toBe(live.result?.verdict);
+    expect(reloaded.result?.explanation).toBe(live.result?.explanation);
+  });
+
+  it('keeps status "error" when the run produced no result at all', async () => {
+    const { app } = await setup();
+    const { runId } = app.runService.start({ caseName: 'bad/../name', mode: 'record' });
+    await app.runService.settled(runId);
+
     const runRes = await app.inject({ method: 'GET', url: `/api/runs/${runId}` });
-    expect(runRes.json()).toMatchObject({ status: 'error', error: 'provider exploded' });
+    const body = runRes.json() as { status: string; error?: string; result?: RunResult };
+    expect(body.status).toBe('error');
+    expect(body.error).toContain('Invalid case name');
+    expect(body.result).toBeUndefined();
   });
 
   it('404s for unknown run ids and missing artifacts', async () => {
@@ -445,6 +495,25 @@ describe('multi-project mode', () => {
         { id: 'beta', name: 'Beta', path: dirB, caseCount: 1 },
       ],
     });
+  });
+
+  it('lists projects without creating directories inside project paths', async () => {
+    const { app, registryPath, dirA, dirB } = await setupProjects();
+    const bare = await mkdtemp(path.join(os.tmpdir(), 'cp-proj-bare-'));
+    const file = JSON.parse(await readFile(registryPath, 'utf8')) as { version: 1; projects: unknown[] };
+    await saveProjects(registryPath, {
+      version: 1,
+      projects: [...(file.projects as Array<{ id: string; name: string; path: string }>), { id: 'bare', name: 'Bare', path: bare }],
+    });
+
+    const res = await app.inject({ method: 'GET', url: '/api/projects' });
+    expect(res.statusCode).toBe(200);
+    expect((res.json().projects as Array<{ id: string }>).map((p) => p.id)).toEqual(['alpha', 'beta', 'bare']);
+
+    expect(await dirExists(path.join(bare, 'cases'))).toBe(false);
+    expect(await dirExists(path.join(bare, 'runs'))).toBe(false);
+    expect(await dirExists(path.join(dirA, 'runs'))).toBe(false);
+    expect(await dirExists(path.join(dirB, 'runs'))).toBe(false);
   });
 
   it('serves project-scoped case routes independently', async () => {
@@ -563,6 +632,41 @@ describe('single-workspace mode projects view', () => {
     const scoped = await app.inject({ method: 'GET', url: '/api/projects/default/cases' });
     const unscoped = await app.inject({ method: 'GET', url: '/api/cases' });
     expect(scoped.json()).toEqual(unscoped.json());
+  });
+
+  it('scaffolds a bare workspace for the implicit default project', async () => {
+    const workspace = await mkdtemp(path.join(os.tmpdir(), 'cp-bare-ws-'));
+    const app = await createServer({
+      workspace,
+      registryPath: path.join(await mkdtemp(path.join(os.tmpdir(), 'cp-reg-')), 'projects.json'),
+      deps: {
+        engine: { recordCase: vi.fn(), replayCase: vi.fn() } as unknown as RunEngine,
+        loadRegistry: async (ws: string) => {
+          // Mirrors the real loader's file dependency: throws ENOENT without a scaffolded config.
+          await readFile(path.join(ws, 'casepilot.config.yaml'), 'utf8');
+          return makeRegistry([chatProvider], 'fake-chat');
+        },
+        resolveMcpBin: () => 'unused',
+      },
+    });
+    openApps.push(app);
+
+    expect(await readFile(path.join(workspace, 'casepilot.config.yaml'), 'utf8')).toContain('providers: []');
+    expect(await readFile(path.join(workspace, 'cases', 'example.case.yaml'), 'utf8')).toContain('name: example');
+
+    const res = await app.inject({ method: 'GET', url: '/api/projects/default/providers' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({
+      default: 'fake-chat',
+      providers: [{ id: 'fake-chat', kind: 'chat', type: 'fake' }],
+    });
+  });
+
+  it('does not overwrite an existing config when serving the default workspace', async () => {
+    const { workspace } = await setup();
+    expect(await readFile(path.join(workspace, 'casepilot.config.yaml'), 'utf8')).toBe('providers: []\n');
+    const cases = await readFile(path.join(workspace, 'cases', 'login.case.yaml'), 'utf8');
+    expect(cases).toContain('name: login');
   });
 
   it('cannot DELETE the implicit default project', async () => {

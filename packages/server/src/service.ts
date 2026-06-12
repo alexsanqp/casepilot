@@ -1,7 +1,18 @@
+import path from 'node:path';
+import { readFile } from 'node:fs/promises';
+import type { RunResult } from '@casepilot/core';
 import { executeRun, type RunnerDeps } from './runner.js';
 import type { HealPolicy } from './workspaceConfig.js';
 import { newRunId, runDirPath } from './workspace.js';
 import type { RunRegistry } from './runs.js';
+
+async function readRunResult(runDir: string): Promise<RunResult | undefined> {
+  try {
+    return JSON.parse(await readFile(path.join(runDir, 'result.json'), 'utf8')) as RunResult;
+  } catch {
+    return undefined;
+  }
+}
 
 export interface StartRunParams {
   caseName: string;
@@ -55,8 +66,9 @@ export class RunService {
       .then((result) => {
         this.registry.complete(runId, result);
       })
-      .catch((err: unknown) => {
-        this.registry.fail(runId, err instanceof Error ? err.message : String(err));
+      .catch(async (err: unknown) => {
+        const message = err instanceof Error ? err.message : String(err);
+        this.registry.fail(runId, message, await readRunResult(runDir));
       })
       .finally(() => {
         this.inflight.delete(runId);

@@ -95,12 +95,24 @@ export class RunRegistry {
     entry.result = result;
   }
 
-  fail(runId: string, error: string): void {
+  /**
+   * When the failed run still produced a result.json, the entry mirrors what a
+   * disk reload would show (done + failed verdict); "error" is reserved for
+   * runs that left no result behind at all.
+   */
+  fail(runId: string, error: string, result?: RunResult): void {
     const entry = this.runs.get(runId);
     if (!entry) return;
-    entry.status = 'error';
     entry.error = error;
-    entry.finishedAt = new Date().toISOString();
+    if (result) {
+      entry.status = 'done';
+      entry.verdict = result.verdict;
+      entry.finishedAt = result.finishedAt;
+      entry.result = result;
+    } else {
+      entry.status = 'error';
+      entry.finishedAt = new Date().toISOString();
+    }
   }
 
   get(runId: string): RunEntry | undefined {
