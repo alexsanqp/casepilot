@@ -25,7 +25,7 @@ export function createClaudeCodeProvider(opts: ClaudeCodeProviderOptions): Agent
   return {
     kind: 'agent',
     id,
-    async runTask({ taskPrompt, mcp, cwd }) {
+    async runTask({ taskPrompt, mcp, cwd, onOutput }) {
       const mcpConfigPath = path.join(os.tmpdir(), `casepilot-mcp-${randomUUID()}.json`);
       const mcpConfig = {
         mcpServers: {
@@ -63,6 +63,7 @@ export function createClaudeCodeProvider(opts: ClaudeCodeProviderOptions): Agent
           // Tolerate slow MCP servers/tools: the browser bridge may take 60s+
           // on its first page interaction against lazily compiled dev servers.
           env: { MCP_TIMEOUT: '120000', MCP_TOOL_TIMEOUT: '300000' },
+          onOutput,
         });
         return { transcript: stdout };
       } finally {

@@ -16,6 +16,8 @@ export interface RunCliOptions {
   stdin?: string;
   /** Extra environment variables merged over process.env for the child. */
   env?: Record<string, string>;
+  /** Called with every stdout chunk as it arrives, so callers can persist progress. */
+  onOutput?: (chunk: string) => void;
 }
 
 export interface RunCliResult {
@@ -72,13 +74,19 @@ export function runCli(opts: RunCliOptions): Promise<RunCliResult> {
     const timer = setTimeout(() => {
       killTree(child);
       settle(() =>
-        reject(new Error(`${opts.label}: "${opts.command}" timed out after ${timeoutMs / 1000}s and was killed`)),
+        reject(
+          new CliExitError(
+            `${opts.label}: "${opts.command}" timed out after ${timeoutMs / 1000}s and was killed`,
+            stdout,
+          ),
+        ),
       );
     }, timeoutMs);
 
     child.stdout?.setEncoding('utf8');
     child.stdout?.on('data', (chunk: string) => {
       stdout += chunk;
+      opts.onOutput?.(chunk);
     });
     child.stderr?.setEncoding('utf8');
     child.stderr?.on('data', (chunk: string) => {

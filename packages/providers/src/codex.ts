@@ -16,7 +16,7 @@ export function createCodexProvider(opts: CodexProviderOptions): AgentProvider {
   return {
     kind: 'agent',
     id,
-    async runTask({ taskPrompt, mcp, cwd }) {
+    async runTask({ taskPrompt, mcp, cwd, onOutput }) {
       const args = [
         ...extraArgs,
         'exec',
@@ -36,7 +36,7 @@ export function createCodexProvider(opts: CodexProviderOptions): AgentProvider {
         `mcp_servers.casepilot.args=${JSON.stringify(mcp.args)}`,
       ];
       if (model) args.push('--model', model);
-      const { stdout } = await runCli({ command, args, cwd, label, stdin: taskPrompt });
+      const { stdout } = await runCli({ command, args, cwd, label, stdin: taskPrompt, onOutput });
       return { transcript: stdout };
     },
   };

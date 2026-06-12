@@ -138,6 +138,8 @@ export interface AgentProvider {
     taskPrompt: string;
     mcp: { command: string; args: string[] };
     cwd?: string;
+    /** Streamed CLI output, chunk by chunk, so callers can persist progress live. */
+    onOutput?: (chunk: string) => void;
   }): Promise<{ transcript: string }>;
 }
 

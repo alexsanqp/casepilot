@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { createWriteStream, type WriteStream } from 'node:fs';
 import { mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { loadCaseFile, loadReplayFile, recordCase, replayCase, saveReplayFile, stripAnsi } from '@casepilot/core';
 import type {
@@ -111,6 +112,10 @@ async function pickHealer(req: RunRequest, deps: RunnerDeps): Promise<HealerFn |
   }
 }
 
+function closeStream(stream: WriteStream): Promise<void> {
+  return new Promise((resolve) => stream.end(resolve));
+}
+
 async function recordViaAgent(
   req: RunRequest,
   spec: CaseSpec,
@@ -135,14 +140,19 @@ async function recordViaAgent(
   if (baseUrl) mcpArgs.push('--base-url', baseUrl);
 
   const transcriptPath = path.join(req.runDir, 'transcript.txt');
+  // Stream the CLI output to disk as it arrives, so even a hard kill of the
+  // provider process leaves a diagnosable transcript behind.
+  const transcriptStream = createWriteStream(transcriptPath, { encoding: 'utf8' });
   let transcript: string;
   try {
     ({ transcript } = await provider.runTask({
       taskPrompt: buildAgentTaskPrompt(spec),
       mcp: { command: process.execPath, args: mcpArgs },
       cwd: req.workspace,
+      onOutput: (chunk) => transcriptStream.write(chunk),
     }));
   } catch (err) {
+    await closeStream(transcriptStream);
     // Agent CLI failures (CliExitError) carry the full captured stdout; persist
     // it so a failed run still leaves the complete session transcript behind.
     const captured = (err as { stdout?: unknown }).stdout;
@@ -152,6 +162,7 @@ async function recordViaAgent(
     throw err;
   }
 
+  await closeStream(transcriptStream);
   await writeFile(transcriptPath, transcript ?? '', 'utf8');
 
   const resultPath = path.join(req.runDir, 'result.json');
