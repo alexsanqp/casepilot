@@ -21,6 +21,22 @@ export interface RunEntry extends RunSummary {
   runDir: string;
 }
 
+export interface CaseLastRun {
+  id: string;
+  status: RunStatus;
+  verdict?: 'passed' | 'failed';
+  finishedAt?: string;
+}
+
+/**
+ * Finished runs are matched on result.caseName; legacy results predating that
+ * field never match. Runs without a result (running/error) were created in
+ * this session, so the registry's own case field is authoritative.
+ */
+function entryCaseName(entry: RunEntry): string | undefined {
+  return entry.result ? entry.result.caseName : entry.case;
+}
+
 export async function readRunsFromDir(runsDirPath: string): Promise<RunEntry[]> {
   let entries;
   try {
@@ -119,9 +135,9 @@ export class RunRegistry {
     return this.runs.get(runId);
   }
 
-  list(): RunSummary[] {
-    return [...this.runs.values()]
-      .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
+  list(caseName?: string): RunSummary[] {
+    return this.sorted()
+      .filter((entry) => caseName === undefined || entryCaseName(entry) === caseName)
       .map((entry) => ({
         runId: entry.runId,
         case: entry.case,
@@ -132,5 +148,24 @@ export class RunRegistry {
         startedAt: entry.startedAt,
         finishedAt: entry.finishedAt,
       }));
+  }
+
+  lastRunsByCase(): Map<string, CaseLastRun> {
+    const out = new Map<string, CaseLastRun>();
+    for (const entry of this.sorted()) {
+      const name = entryCaseName(entry);
+      if (!name || out.has(name)) continue;
+      out.set(name, {
+        id: entry.runId,
+        status: entry.status,
+        verdict: entry.verdict,
+        finishedAt: entry.finishedAt,
+      });
+    }
+    return out;
+  }
+
+  private sorted(): RunEntry[] {
+    return [...this.runs.values()].sort((a, b) => b.startedAt.localeCompare(a.startedAt));
   }
 }

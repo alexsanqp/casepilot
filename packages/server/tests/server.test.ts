@@ -3,7 +3,7 @@ import os from 'node:os';
 import { mkdir, mkdtemp, readFile, stat, writeFile } from 'node:fs/promises';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import type { AgentProvider, ChatProvider, Provider, ReplayFile, RunResult } from '@casepilot/core';
+import type { AgentProvider, CaseSpec, ChatProvider, Provider, ReplayFile, RunResult } from '@casepilot/core';
 import { createServer } from '../src/server.js';
 import { saveProjects } from '../src/projects.js';
 import type { RunEngine } from '../src/runner.js';
@@ -725,5 +725,117 @@ describe('POST runs baseUrl', () => {
 
     const options = (engine.recordCase as ReturnType<typeof vi.fn>).mock.calls[0]![2] as { baseUrl?: string };
     expect(options.baseUrl).toBe('https://req.example.com');
+  });
+});
+
+describe('GET /api/runs?case filter', () => {
+  function caseAwareRecord() {
+    return vi.fn(async (spec: CaseSpec) => ({
+      result: { ...makeResult('record'), case: spec.name, caseName: spec.name },
+      replay: { ...makeReplay(), case: spec.name },
+    }));
+  }
+
+  async function addSignupCase(workspace: string): Promise<void> {
+    await writeFile(
+      path.join(workspace, 'cases', 'signup.case.yaml'),
+      CASE_YAML.replace('name: login', 'name: signup'),
+      'utf8',
+    );
+  }
+
+  async function startRun(app: FastifyInstance, caseName: string): Promise<string> {
+    const res = await app.inject({ method: 'POST', url: '/api/runs', payload: { case: caseName, mode: 'record' } });
+    expect(res.statusCode).toBe(202);
+    const { runId } = res.json() as { runId: string };
+    await app.runService.settled(runId);
+    return runId;
+  }
+
+  it('returns only runs whose caseName matches exactly', async () => {
+    const { app, workspace } = await setup({ engine: { recordCase: caseAwareRecord() } });
+    await addSignupCase(workspace);
+    const loginRunId = await startRun(app, 'login');
+    await startRun(app, 'signup');
+
+    expect((await app.inject({ method: 'GET', url: '/api/runs' })).json()).toHaveLength(2);
+
+    const filtered = await app.inject({ method: 'GET', url: '/api/runs?case=login' });
+    expect(filtered.statusCode).toBe(200);
+    expect(filtered.json()).toEqual([
+      expect.objectContaining({ runId: loginRunId, case: 'login', status: 'done', verdict: 'passed' }),
+    ]);
+
+    const scoped = await app.inject({ method: 'GET', url: '/api/projects/default/runs?case=login' });
+    expect(scoped.json()).toEqual(filtered.json());
+  });
+
+  it('returns an empty list (200) for an unknown case name', async () => {
+    const { app } = await setup();
+    await startRun(app, 'login');
+    const res = await app.inject({ method: 'GET', url: '/api/runs?case=no-such-case' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual([]);
+  });
+
+  it('never matches legacy runs whose result.json predates caseName', async () => {
+    const { app, workspace } = await setup();
+    const { caseName: _omit, ...legacyResult } = makeResult('record');
+    await mkdir(path.join(workspace, 'runs', 'legacy-run'), { recursive: true });
+    await writeFile(
+      path.join(workspace, 'runs', 'legacy-run', 'result.json'),
+      JSON.stringify(legacyResult, null, 2),
+      'utf8',
+    );
+
+    const rebooted = await createServer({
+      workspace,
+      registryPath: path.join(await mkdtemp(path.join(os.tmpdir(), 'cp-reg-')), 'projects.json'),
+      deps: {
+        engine: { recordCase: vi.fn(), replayCase: vi.fn() } as unknown as RunEngine,
+        loadRegistry: async () => makeRegistry([chatProvider], 'fake-chat'),
+        resolveMcpBin: () => 'unused',
+      },
+    });
+    openApps.push(rebooted);
+
+    const unfiltered = await rebooted.inject({ method: 'GET', url: '/api/runs' });
+    expect(unfiltered.json()).toEqual([expect.objectContaining({ runId: 'legacy-run', case: 'login' })]);
+
+    const filtered = await rebooted.inject({ method: 'GET', url: '/api/runs?case=login' });
+    expect(filtered.statusCode).toBe(200);
+    expect(filtered.json()).toEqual([]);
+  });
+
+  it('GET /api/cases attaches lastRun only to cases that have runs', async () => {
+    const { app, workspace } = await setup({ engine: { recordCase: caseAwareRecord() } });
+    await addSignupCase(workspace);
+
+    const before = (await app.inject({ method: 'GET', url: '/api/cases' })).json() as Array<Record<string, unknown>>;
+    expect(before).toHaveLength(2);
+    for (const row of before) expect(row).not.toHaveProperty('lastRun');
+
+    const firstRunId = await startRun(app, 'login');
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    const lastRunId = await startRun(app, 'login');
+    expect(lastRunId).not.toBe(firstRunId);
+
+    const after = (await app.inject({ method: 'GET', url: '/api/cases' })).json() as Array<{
+      name: string;
+      lastRun?: { id: string; status: string; verdict?: string; finishedAt?: string };
+    }>;
+    const login = after.find((row) => row.name === 'login');
+    expect(login?.lastRun).toEqual({
+      id: lastRunId,
+      status: 'done',
+      verdict: 'passed',
+      finishedAt: expect.any(String),
+    });
+    const signup = after.find((row) => row.name === 'signup');
+    expect(signup).toBeDefined();
+    expect(signup).not.toHaveProperty('lastRun');
+
+    const scoped = (await app.inject({ method: 'GET', url: '/api/projects/default/cases' })).json();
+    expect(scoped).toEqual(after);
   });
 });

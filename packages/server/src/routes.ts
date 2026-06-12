@@ -61,7 +61,12 @@ function registerProjectScopedRoutes(app: FastifyInstance, deps: ApiDeps, base: 
   app.get(`${base}/cases`, async (req, reply) => {
     const ctx = await resolve(req, reply);
     if (!ctx) return reply;
-    return listCases(ctx.workspace);
+    const cases = await listCases(ctx.workspace);
+    const lastRuns = ctx.registry.lastRunsByCase();
+    return cases.map((row) => {
+      const lastRun = lastRuns.get(row.name);
+      return lastRun ? { ...row, lastRun } : row;
+    });
   });
 
   app.get<{ Params: { name: string } }>(`${base}/cases/:name`, async (req, reply) => {
@@ -190,10 +195,10 @@ function registerProjectScopedRoutes(app: FastifyInstance, deps: ApiDeps, base: 
     return reply.status(202).send({ runId });
   });
 
-  app.get(`${base}/runs`, async (req, reply) => {
+  app.get<{ Querystring: { case?: string } }>(`${base}/runs`, async (req, reply) => {
     const ctx = await resolve(req, reply);
     if (!ctx) return reply;
-    return ctx.registry.list();
+    return ctx.registry.list(req.query.case);
   });
 
   app.get<{ Params: { id: string } }>(`${base}/runs/:id`, async (req, reply) => {
