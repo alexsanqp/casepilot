@@ -3,69 +3,69 @@
   "case": "run-button-states",
   "url": "/",
   "providerUsed": "agent",
-  "recordedAt": "2026-06-12T13:54:19.497Z",
+  "recordedAt": "2026-06-12T18:29:50.588Z",
   "steps": [
     {
       "kind": "act",
       "action": "waitFor",
       "selector": "text=casepilot",
       "value": "5000",
-      "note": "Wait for casepilot project to appear"
+      "note": "Wait for projects to load"
     },
     {
       "kind": "act",
       "action": "click",
       "selector": "role=link[name=\"casepilot\"]",
-      "note": "Click the casepilot project name on its project card"
+      "note": "Step 1: Click the casepilot project name on its project card"
     },
     {
       "kind": "act",
       "action": "waitFor",
-      "selector": "role=table",
+      "selector": "text=heal-approve",
       "value": "5000",
-      "note": "Wait for cases table to appear"
-    },
-    {
-      "kind": "act",
-      "action": "scroll",
-      "selector": "tr:has(a[href*=\"/heal-approve/\"]) button:has-text(\"Run\")",
-      "note": "Hover over the disabled Run button in the heal-approve row"
-    },
-    {
-      "kind": "act",
-      "action": "scroll",
-      "selector": "tr:has(a[href*=\"/projects-list/\"]) button:has-text(\"Run\")",
-      "note": "Hover over the enabled Run button in the projects-list row"
+      "note": "Step 2: Wait for cases table with heal-approve row"
     },
     {
       "kind": "assert",
       "assert": "visible",
-      "selector": "tr:has(a[href*=\"/heal-approve/\"]) button[disabled]",
-      "note": "Run button for heal-approve is disabled"
+      "selector": "role=row[name*=\"heal-approve\"] >> role=button[name=\"Run\"]",
+      "note": "Expectation 1b: Run button is present (and disabled) in heal-approve row"
     },
     {
       "kind": "assert",
       "assert": "visible",
-      "selector": "tr:has(a[href*=\"/projects-list/\"]) button:not([disabled]):has-text(\"Run\")",
-      "note": "Run button for projects-list is enabled"
+      "selector": "role=row[name*=\"projects-list\"] >> role=button[name=\"Run\"]",
+      "note": "Expectation 2b: Run button is present (enabled) in projects-list row"
     },
     {
       "kind": "assert",
       "assert": "visible",
-      "selector": "tr:has(a[href*=\"/heal-approve/\"]) button[title=\"No replay recorded yet\"]",
-      "note": "Disabled Run button for heal-approve has tooltip No replay recorded yet"
+      "selector": "role=row[name*=\"heal-approve\"] >> button[disabled][title=\"No replay recorded yet\"]",
+      "note": "Expectation 1: heal-approve Run button is disabled with tooltip \"No replay recorded yet\""
     },
     {
       "kind": "assert",
       "assert": "visible",
-      "selector": "tr:has(a[href*=\"/projects-list/\"]) button[title=\"Replay the recorded steps\"]",
-      "note": "Enabled Run button for projects-list has tooltip Replay the recorded steps"
+      "selector": "role=row[name*=\"projects-list\"] >> button:not([disabled])[title=\"Replay the recorded steps\"]",
+      "note": "Expectation 2: projects-list Run button is enabled with tooltip \"Replay the recorded steps\""
     },
     {
       "kind": "assert",
-      "assert": "textPresent",
-      "text": "claude-code",
-      "note": "Provider dropdown with claude-code option is present in rows"
+      "assert": "visible",
+      "selector": "role=row[name*=\"heal-approve\"] >> role=combobox",
+      "note": "Expectation 3a: heal-approve row has provider dropdown"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=row[name*=\"projects-list\"] >> role=combobox",
+      "note": "Expectation 3b: projects-list row has provider dropdown"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=row[name*=\"case-editor-edit\"] >> role=combobox",
+      "note": "Expectation 3c: spot-check a third row also has provider dropdown"
     }
   ],
   "meta": {

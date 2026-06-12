@@ -11,5 +11,5 @@ steps:
   - Close the modal
 expect:
   - The export modal showed a code block containing a generated Playwright spec
-  - After clicking Copy the button label briefly changed to "Copied"
+  - After clicking Copy the button label changed to "Copied" and stayed that way
   - The modal is closed and the case detail page is visible again

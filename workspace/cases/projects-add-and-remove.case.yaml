@@ -6,8 +6,8 @@ steps:
   - Type "C:\DISK_D\Projects\casepilot\packages" into the "Absolute path" input
   - Click the "Add project" button
   - Wait for a project card named "selftest-temp" to appear in the project grid
-  - Click the "Remove" button on the "selftest-temp" project card
+  - Click the button named "Remove project selftest-temp" on the "selftest-temp" project card
   - Accept the browser confirmation dialog that asks to remove the project from the registry
 expect:
   - The "selftest-temp" project card is no longer visible in the project grid
-  - The "demo-workspace" project card is still visible
+  - The "casepilot" and "demo-workspace" project cards are still visible

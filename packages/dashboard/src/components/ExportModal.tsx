@@ -31,6 +31,8 @@ export function ExportModal({
 }) {
   const [copyState, setCopyState] = useState<CopyState>('idle');
 
+  // The state intentionally never reverts while the modal is open: short-lived
+  // feedback is invisible to both screen-reader users and recording agents.
   const copy = async () => {
     let ok = false;
     try {
@@ -40,7 +42,6 @@ export function ExportModal({
       ok = copyViaExecCommand(specTs);
     }
     setCopyState(ok ? 'copied' : 'failed');
-    if (ok) window.setTimeout(() => setCopyState('idle'), 1500);
   };
 
   return (

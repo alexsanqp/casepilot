@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "case": "run-start-replay",
+  "url": "/",
+  "providerUsed": "agent",
+  "recordedAt": "2026-06-12T18:25:44.224Z",
+  "steps": [
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=link[name=\"casepilot\"]",
+      "note": "Click the casepilot project name on its project card"
+    },
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "selector": "role=table",
+      "value": "5000",
+      "note": "Wait for the cases table to appear"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=link[name=\"projects-list\"]",
+      "note": "Click the case name link \"projects-list\" in the table"
+    },
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "selector": "role=heading[name=\"projects-list\"]",
+      "value": "5000",
+      "note": "Wait for the case detail page with the projects-list heading"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=button[name=\"Run\"]",
+      "note": "Click the Run button in the action bar"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=heading[name=\"projects-list\"]",
+      "note": "The page stayed on the case detail page after clicking Run"
+    },
+    {
+      "kind": "assert",
+      "assert": "textPresent",
+      "selector": "role=table",
+      "text": "replay",
+      "note": "The newest run history row shows a replay mode badge"
+    },
+    {
+      "kind": "assert",
+      "assert": "textPresent",
+      "selector": "role=table",
+      "text": "done",
+      "note": "The newest run history row shows a finished status"
+    }
+  ],
+  "meta": {
+    "healCount": 0
+  }
+}

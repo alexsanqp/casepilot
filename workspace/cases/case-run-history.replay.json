@@ -1,0 +1,154 @@
+{
+  "version": 1,
+  "case": "case-run-history",
+  "url": "/",
+  "providerUsed": "agent",
+  "recordedAt": "2026-06-12T18:23:16.706Z",
+  "steps": [
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "selector": "text=casepilot",
+      "value": "5000",
+      "note": "Wait for casepilot project to appear"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=link[name=\"casepilot\"]",
+      "note": "Step 1: Click the casepilot project name on its project card"
+    },
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "selector": "role=table",
+      "value": "5000",
+      "note": "Step 2: Wait for the cases table to appear"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=link[name=\"cases-list\"]",
+      "note": "Step 3: Click the cases-list case name link in the table"
+    },
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "selector": "role=heading[name=\"cases-list\"]",
+      "value": "5000",
+      "note": "Step 4: Wait for the case detail page with cases-list heading"
+    },
+    {
+      "kind": "act",
+      "action": "scroll",
+      "selector": "role=heading[name=\"Run history\"]",
+      "note": "Step 5: Scroll to the Run history section"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=row[name=\"20260612 replay unknown done FAIL 10.2s 12.06.2026, 20:38:27\"]",
+      "note": "Step 6: Click the first row in the run history table"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=link[name=\"← case cases-list\"]",
+      "note": "Expectation 3: Run detail page has a back link to case cases-list"
+    },
+    {
+      "kind": "assert",
+      "assert": "urlContains",
+      "text": "/runs/",
+      "note": "Expectation 3: URL is on the run detail page"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=link[name=\"← case cases-list\"]",
+      "note": "Navigate back to case detail page to verify run history table"
+    },
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "selector": "role=heading[name=\"Run history\"]",
+      "value": "5000",
+      "note": "Wait for run history section on case detail page"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=columnheader[name=\"Run\"]",
+      "note": "Expectation 1: Run column header visible"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=columnheader[name=\"Mode\"]",
+      "note": "Expectation 1: Mode column header visible"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=columnheader[name=\"Provider\"]",
+      "note": "Expectation 1: Provider column header visible"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=columnheader[name=\"Status\"]",
+      "note": "Expectation 1: Status column header visible"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=columnheader[name=\"Verdict\"]",
+      "note": "Expectation 1: Verdict column header visible"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=columnheader[name=\"Duration\"]",
+      "note": "Expectation 1: Duration column header visible"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=columnheader[name=\"Started\"]",
+      "note": "Expectation 1: Started column header visible"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "table code",
+      "note": "Expectation 2: Short run id shown as code element in table"
+    },
+    {
+      "kind": "assert",
+      "assert": "textPresent",
+      "text": "replay",
+      "note": "Expectation 2: Mode badge visible in first row"
+    },
+    {
+      "kind": "assert",
+      "assert": "textPresent",
+      "text": "FAIL",
+      "note": "Expectation 2: Verdict badge visible in first row"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=row[name=\"20260612 replay unknown done FAIL 10.2s 12.06.2026, 20:38:27\"]",
+      "note": "Expectation 2: First row (newest) is visible - 20:38:27"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=row[name=\"20260612 record agent done PASS 3m 31s 12.06.2026, 16:50:23\"]",
+      "note": "Expectation 2: Second row is older than first (16:50 < 20:38)"
+    }
+  ],
+  "meta": {
+    "healCount": 0
+  }
+}

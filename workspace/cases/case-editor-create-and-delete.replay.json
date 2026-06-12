@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "case": "case-editor-create-and-delete",
+  "url": "/",
+  "providerUsed": "agent",
+  "recordedAt": "2026-06-12T18:39:25.597Z",
+  "steps": [
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=link[name=\"demo-workspace\"]",
+      "note": "Step 1: Click the demo-workspace project name on its project card"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=link[name=\"New case\"]",
+      "note": "Step 2: Click the New case button in the Cases page header"
+    },
+    {
+      "kind": "act",
+      "action": "fill",
+      "selector": "role=textbox[name=\"Name\"]",
+      "value": "selftest-editor-temp",
+      "note": "Step 4: Type selftest-editor-temp into the Name input"
+    },
+    {
+      "kind": "assert",
+      "assert": "textPresent",
+      "text": "name: my-case",
+      "note": "Step 5: Verify the Spec YAML textarea is pre-filled with a template starting with name: my-case"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=button[name=\"Save\"]",
+      "note": "Step 6: Click the Save button"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=heading[name=\"selftest-editor-temp\"]",
+      "note": "Expectation 1a: After Save, heading selftest-editor-temp is visible"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=heading[name=\"Definition\"]",
+      "note": "Expectation 1b: Definition section is visible"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=heading[name=\"Replay\"]",
+      "note": "Expectation 1c: Replay section is visible"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=heading[name=\"Run history\"]",
+      "note": "Expectation 1d: Run history section is visible"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=button[name=\"Delete\"]",
+      "note": "Step 8: Click the Delete button in the action bar"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=table",
+      "note": "Expectation 2a: After Delete, cases table is visible"
+    },
+    {
+      "kind": "assert",
+      "assert": "absent",
+      "selector": "role=link[name=\"selftest-editor-temp\"]",
+      "note": "Expectation 2b: selftest-editor-temp row is no longer in the table"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=link[name=\"example\"]",
+      "note": "Expectation 3: The example row is still present"
+    }
+  ],
+  "meta": {
+    "healCount": 0
+  }
+}

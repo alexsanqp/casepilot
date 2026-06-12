@@ -112,6 +112,7 @@ function ProjectCard({
           type="button"
           className="btn btn-danger"
           disabled={busy}
+          aria-label={`Remove project ${project.name}`}
           onClick={() => void remove()}
         >
           Remove
