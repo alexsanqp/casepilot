@@ -107,6 +107,57 @@ describe('BrowserSession.queryPage', () => {
   });
 });
 
+describe('BrowserSession ref identity with duplicate accessible names', () => {
+  const ambiguousUrl = new URL('./fixtures/ambiguous.html', import.meta.url).href;
+
+  it('disambiguates same-selector candidates and act() clicks the intended element', async () => {
+    const session = await BrowserSession.launch({ artifactsDir: dirFor('ambiguous') });
+    try {
+      await session.goto(ambiguousUrl);
+      const candidates = await session.queryPage('Reject button', 10);
+      const rejects = candidates.filter((c) => c.name === 'Reject');
+      expect(rejects).toHaveLength(2);
+      expect(rejects.map((c) => c.selector)).toEqual([
+        'role=button[name="Reject"] >> nth=0',
+        'role=button[name="Reject"] >> nth=1',
+      ]);
+
+      const second = rejects.find((c) => c.selector.endsWith('nth=1'))!;
+      // resolveStep yields the disambiguated selector, so the recorded replay step carries it
+      const resolved = session.resolveStep({ kind: 'act', action: 'click', selector: second.ref });
+      expect(resolved.selector).toBe('role=button[name="Reject"] >> nth=1');
+
+      await session.act({ kind: 'act', action: 'click', selector: second.ref });
+      const verdict = await session.assert({
+        kind: 'assert',
+        assert: 'textPresent',
+        selector: '#state',
+        text: 'rejected-2',
+      });
+      expect(verdict.ok).toBe(true);
+    } finally {
+      await session.close();
+    }
+  });
+
+  it('replaying the disambiguated selector clicks the same element without refs', async () => {
+    const session = await BrowserSession.launch({ artifactsDir: dirFor('ambiguous-replay') });
+    try {
+      await session.goto(ambiguousUrl);
+      await session.act({ kind: 'act', action: 'click', selector: 'role=button[name="Reject"] >> nth=1' });
+      const verdict = await session.assert({
+        kind: 'assert',
+        assert: 'textPresent',
+        selector: '#state',
+        text: 'rejected-2',
+      });
+      expect(verdict.ok).toBe(true);
+    } finally {
+      await session.close();
+    }
+  });
+});
+
 describe('BrowserSession native dialogs', () => {
   const dialogFixtureUrl = new URL('./fixtures/dialog.html', import.meta.url).href;
 
@@ -156,6 +207,30 @@ describe('record → replay → heal → video', () => {
 
     recordedReplay = await loadReplayFile(result.artifacts.replayPath!);
     expect(recordedReplay.steps).toHaveLength(2);
+  });
+
+  it('object steps surface step-scoped expectations in the recorder prompt', async () => {
+    const objectStepCase: CaseSpec = {
+      name: 'Save profile with step expect',
+      url: fixtureUrl,
+      steps: [{ do: 'Click the Save button', expect: 'A toast saying "Saved successfully" appears' }],
+      expect: ['A toast saying "Saved successfully" appears'],
+    };
+    let caseMsg: string | undefined;
+    const provider = new FakeChatProvider([
+      ({ messages }) => {
+        caseMsg = messages[1]!.content;
+        return { toolCalls: [{ name: 'act', arguments: { action: 'click', selector: 'role=button[name="Save"]' } }] };
+      },
+      () => ({
+        toolCalls: [{ name: 'assert', arguments: { assert: 'visible', selector: 'text="Saved successfully"' } }],
+      }),
+      () => ({ toolCalls: [{ name: 'report_result', arguments: { passed: true, explanation: 'toast shown' } }] }),
+    ]);
+    const { result } = await recordCase(objectStepCase, provider, { artifactsDir: dirFor('object-steps') });
+    expect(result.verdict).toBe('passed');
+    expect(caseMsg).toContain('1. Click the Save button');
+    expect(caseMsg).toContain('-> after this step, verify: A toast saying "Saved successfully" appears');
   });
 
   it('(b) replayCase passes with zero LLM calls', async () => {
@@ -240,6 +315,45 @@ describe('record → replay → heal → video', () => {
     expect(corrupted.meta.healCount).toBe(0);
     expect(result.artifacts.replayPath).toBeUndefined();
     await expect(access(path.join(artifactsDir, 'replay.json'))).rejects.toThrow();
+  });
+});
+
+describe('replay pacing', () => {
+  const pacedReplay = (): ReplayFile => ({
+    version: 1,
+    case: 'paced',
+    url: fixtureUrl,
+    providerUsed: 'fake',
+    recordedAt: '2026-06-12T00:00:00.000Z',
+    steps: [
+      { kind: 'assert', assert: 'visible', selector: 'role=heading[name="Profile settings"]' },
+      { kind: 'assert', assert: 'visible', selector: 'role=button[name="Save"]' },
+      { kind: 'assert', assert: 'visible', selector: 'role=textbox[name="Username"]' },
+    ],
+    meta: { healCount: 0 },
+  });
+
+  it('stepDelayMs waits between successful steps', async () => {
+    const stepDelayMs = 150;
+    const result = await replayCase(pacedReplay(), { artifactsDir: dirFor('paced'), stepDelayMs });
+    expect(result.verdict).toBe('passed');
+    const offsets = result.steps.map((s) => s.offsetMs);
+    expect(offsets).toHaveLength(3);
+    // offsetMs is captured at step start, so consecutive gaps include the delay
+    expect(offsets[1]! - offsets[0]!).toBeGreaterThanOrEqual(stepDelayMs - 20);
+    expect(offsets[2]! - offsets[1]!).toBeGreaterThanOrEqual(stepDelayMs - 20);
+  });
+
+  it('slowMo launch still drives the page', async () => {
+    const session = await BrowserSession.launch({ artifactsDir: dirFor('slowmo'), slowMo: 10 });
+    try {
+      await session.goto(fixtureUrl);
+      await session.act({ kind: 'act', action: 'click', selector: 'role=button[name="Save"]' });
+      const verdict = await session.assert({ kind: 'assert', assert: 'textPresent', text: 'Saved successfully' });
+      expect(verdict.ok).toBe(true);
+    } finally {
+      await session.close();
+    }
   });
 });
 

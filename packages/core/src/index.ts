@@ -14,4 +14,7 @@ export {
   saveReplayFile,
   parseCaseSpec,
   parseReplayFile,
+  normalizeCaseStep,
+  normalizeCaseSteps,
+  stepInstructions,
 } from './caseFile.js';

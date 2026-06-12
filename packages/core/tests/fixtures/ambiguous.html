@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>CasePilot Ambiguity Fixture</title>
+</head>
+<body>
+  <h1>Pending requests</h1>
+  <section>
+    <h2>Request from Alice</h2>
+    <button class="reject" data-card="1" type="button">Reject</button>
+  </section>
+  <section>
+    <h2>Request from Bob</h2>
+    <button class="reject" data-card="2" type="button">Reject</button>
+  </section>
+  <div id="state">none</div>
+  <script>
+    for (const btn of document.querySelectorAll('button.reject')) {
+      btn.addEventListener('click', () => {
+        document.getElementById('state').textContent = 'rejected-' + btn.dataset.card;
+      });
+    }
+  </script>
+</body>
+</html>

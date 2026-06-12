@@ -43,6 +43,10 @@ async function runStep(session: BrowserSession, step: ReplayStep): Promise<void>
   if (!ok) throw new Error(detail);
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function replayCase(
   replay: ReplayFile,
   options: RunOptions,
@@ -76,6 +80,10 @@ export async function replayCase(
       stepResults.push({ ...result, screenshot });
     };
 
+    const pause = async (index: number): Promise<void> => {
+      if (options.stepDelayMs && index < replay.steps.length - 1) await sleep(options.stepDelayMs);
+    };
+
     for (let i = 0; i < replay.steps.length; i++) {
       const step = replay.steps[i]!;
       const offsetMs = Date.now() - session.startedAt;
@@ -83,6 +91,7 @@ export async function replayCase(
       try {
         await runStep(session, step);
         await pushResult({ index: i, step, status: 'passed', durationMs: Date.now() - t0, offsetMs });
+        await pause(i);
         continue;
       } catch (err) {
         const error = errorMessage(err);
@@ -117,6 +126,7 @@ export async function replayCase(
                 durationMs: Date.now() - t0,
                 offsetMs,
               });
+              await pause(i);
               continue;
             } catch (retryErr) {
               await pushResult({

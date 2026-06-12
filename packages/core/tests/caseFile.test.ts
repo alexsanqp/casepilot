@@ -2,7 +2,16 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { loadCaseFile, loadReplayFile, parseCaseSpec, parseReplayFile, saveCaseFile, saveReplayFile } from '../src/caseFile.js';
+import {
+  loadCaseFile,
+  loadReplayFile,
+  normalizeCaseSteps,
+  parseCaseSpec,
+  parseReplayFile,
+  saveCaseFile,
+  saveReplayFile,
+  stepInstructions,
+} from '../src/caseFile.js';
 import type { ReplayFile } from '../src/types.js';
 
 let dir: string;
@@ -59,6 +68,73 @@ describe('case files', () => {
   it('rejects urls that are neither absolute nor leading-slash relative', () => {
     for (const url of ['', 'login', 'p/x/cases', 'example.com/login', 'http://']) {
       expect(() => parseCaseSpec({ name: 'bad', url, steps: ['s'], expect: ['e'] })).toThrow(/url/);
+    }
+  });
+
+  it('loads object steps with per-step expectations mixed with string steps', async () => {
+    const filePath = path.join(dir, 'object-steps.case.yaml');
+    await writeFile(
+      filePath,
+      [
+        'name: Checkout',
+        'url: /cart',
+        'steps:',
+        '  - Click the checkout button',
+        '  - do: Fill the email field',
+        '    expect: The Place order button becomes enabled',
+        '  - do: Click Place order',
+        '    expect:',
+        '      - A spinner appears',
+        '      - The spinner disappears',
+        'expect:',
+        '  - Order confirmed is visible',
+      ].join('\n'),
+      'utf8',
+    );
+    const spec = await loadCaseFile(filePath);
+    expect(spec.steps).toEqual([
+      'Click the checkout button',
+      { do: 'Fill the email field', expect: 'The Place order button becomes enabled' },
+      { do: 'Click Place order', expect: ['A spinner appears', 'The spinner disappears'] },
+    ]);
+    expect(normalizeCaseSteps(spec)).toEqual([
+      { instruction: 'Click the checkout button', expect: [] },
+      { instruction: 'Fill the email field', expect: ['The Place order button becomes enabled'] },
+      { instruction: 'Click Place order', expect: ['A spinner appears', 'The spinner disappears'] },
+    ]);
+    expect(stepInstructions(spec)).toEqual([
+      'Click the checkout button',
+      'Fill the email field',
+      'Click Place order',
+    ]);
+  });
+
+  it('round-trips object steps through saveCaseFile', async () => {
+    const filePath = path.join(dir, 'object-roundtrip.case.yaml');
+    const spec = {
+      name: 'RT objects',
+      url: 'https://x.test',
+      steps: ['plain', { do: 'with expect', expect: ['e1', 'e2'] }],
+      expect: ['final'],
+    };
+    await saveCaseFile(filePath, spec);
+    expect(await loadCaseFile(filePath)).toEqual(spec);
+  });
+
+  it('rejects invalid step shapes', () => {
+    const base = { name: 'bad steps', url: '/x', expect: ['e'] };
+    const invalidSteps: unknown[] = [
+      [''],
+      [42],
+      [{}],
+      [{ do: '' }],
+      [{ expect: 'no do' }],
+      [{ do: 'x', expect: 7 }],
+      [{ do: 'x', expect: [''] }],
+      [{ do: 'x', extra: true }],
+    ];
+    for (const steps of invalidSteps) {
+      expect(() => parseCaseSpec({ ...base, steps })).toThrow(/steps/);
     }
   });
 });

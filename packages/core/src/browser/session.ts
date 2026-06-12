@@ -118,6 +118,31 @@ function buildSelector(el: RawElement): string {
   return el.css;
 }
 
+/**
+ * Keeps ref→selector resolution identity-preserving: when several collected
+ * elements share the same built selector (e.g. two role=button[name="Reject"]),
+ * each gets ` >> nth=<i>` with its DOM-order index among those matches, so
+ * acting on a ref hits the element the agent actually picked instead of
+ * .first(). Unique selectors are left untouched for stability.
+ */
+function disambiguateSelectors(elements: RawElement[]): Map<RawElement, string> {
+  const matchCount = new Map<string, number>();
+  const base = elements.map((el) => {
+    const selector = buildSelector(el);
+    matchCount.set(selector, (matchCount.get(selector) ?? 0) + 1);
+    return selector;
+  });
+  const seen = new Map<string, number>();
+  const out = new Map<RawElement, string>();
+  elements.forEach((el, i) => {
+    const selector = base[i]!;
+    const index = seen.get(selector) ?? 0;
+    seen.set(selector, index + 1);
+    out.set(el, matchCount.get(selector)! > 1 ? `${selector} >> nth=${index}` : selector);
+  });
+  return out;
+}
+
 function collectRawElements(): RawElement[] {
   const SKIP_TAGS = new Set(['script', 'style', 'meta', 'link', 'noscript', 'template']);
   const INTERACTIVE_TAGS = new Set(['a', 'button', 'input', 'select', 'textarea', 'summary', 'option']);
@@ -287,7 +312,7 @@ export class BrowserSession {
     }
     const session = new BrowserSession(options);
     await mkdir(options.artifactsDir, { recursive: true });
-    session.browser = await chromium.launch({ headless: options.headless ?? true });
+    session.browser = await chromium.launch({ headless: options.headless ?? true, slowMo: options.slowMo });
     const viewport = options.viewport ?? DEFAULT_VIEWPORT;
     session.context = await session.browser.newContext({
       viewport,
@@ -339,10 +364,11 @@ export class BrowserSession {
       throw new Error('queryPage requires a non-empty query');
     }
     const raw = (await this.pageInstance.evaluate(collectRawElements)).slice(0, MAX_INDEXED_ELEMENTS);
+    const selectors = disambiguateSelectors(raw);
     const ranked = rankElements(query, raw, topK);
     this.refMap.clear();
     return ranked.map((el) => {
-      const selector = buildSelector(el);
+      const selector = selectors.get(el)!;
       const ref = `e${++this.refCounter}`;
       this.refMap.set(ref, selector);
       return { ref, role: el.role, name: el.name, context: el.context, selector };

@@ -1,7 +1,23 @@
+export interface CaseStepObject {
+  /** Plain-English action, same semantics as a string step. */
+  do: string;
+  /** Expectation(s) to verify immediately after this step, before the next one. */
+  expect?: string | string[];
+}
+
+/** A case step: plain instruction string, or an object carrying step-scoped expectations. */
+export type CaseStep = string | CaseStepObject;
+
+/** Uniform view of a CaseStep; see normalizeCaseSteps in caseFile.ts. */
+export interface NormalizedCaseStep {
+  instruction: string;
+  expect: string[];
+}
+
 export interface CaseSpec {
   name: string;
   url: string;
-  steps: string[];
+  steps: CaseStep[];
   expect: string[];
 }
 
@@ -104,6 +120,16 @@ export interface RunOptions {
    * behind confirmation dialogs stay drivable; Playwright alone would dismiss.
    */
   dialogs?: 'accept' | 'dismiss';
+  /**
+   * Milliseconds Playwright pauses between every browser operation
+   * (chromium.launch slowMo). Default off. Makes recorded video watchable.
+   */
+  slowMo?: number;
+  /**
+   * Milliseconds the replayer waits after each successful step (except the
+   * last). Default off. Complements slowMo for natural replay pacing.
+   */
+  stepDelayMs?: number;
 }
 
 export interface ToolDef {

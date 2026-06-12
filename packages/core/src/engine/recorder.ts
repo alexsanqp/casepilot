@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { BrowserSession, relativizeGotoStep } from '../browser/session.js';
-import { saveReplayFile } from '../caseFile.js';
+import { normalizeCaseSteps, saveReplayFile } from '../caseFile.js';
 import { captureStepScreenshotIfNeeded } from './stepScreenshots.js';
 import { collapseStepResults, validateFinalOutcomes } from './outcomes.js';
 import { optimizeVideo } from './videoOptimizer.js';
@@ -94,19 +94,26 @@ function systemPrompt(): string {
     'Your job: execute the human-language test steps in order, then verify every expectation with assert calls.',
     'Workflow: use query_page (or snapshot) to find elements, act to interact, assert to verify.',
     'Prefer selectors returned by query_page. Every successful act/assert is recorded into a deterministic replay.',
+    'Some steps carry their own expectations ("after this step, verify"). Verify those with assert calls immediately after performing that step, before starting the next step. If such an assert fails, the case fails at that step.',
     'You MUST finish by calling report_result with passed and a short explanation. Do not stop before that.',
   ].join('\n');
 }
 
 function caseMessage(caseSpec: CaseSpec): string {
-  return [
+  const lines = [
     `Test case: ${caseSpec.name}`,
     `Start URL (already opened): ${caseSpec.url}`,
     'Steps:',
-    ...caseSpec.steps.map((s, i) => `  ${i + 1}. ${s}`),
-    'Expectations to verify:',
-    ...caseSpec.expect.map((e, i) => `  ${i + 1}. ${e}`),
-  ].join('\n');
+  ];
+  normalizeCaseSteps(caseSpec).forEach((step, i) => {
+    lines.push(`  ${i + 1}. ${step.instruction}`);
+    for (const expectation of step.expect) {
+      lines.push(`     -> after this step, verify: ${expectation}`);
+    }
+  });
+  lines.push('Expectations to verify:');
+  caseSpec.expect.forEach((e, i) => lines.push(`  ${i + 1}. ${e}`));
+  return lines.join('\n');
 }
 
 function errorMessage(err: unknown): string {

@@ -20,6 +20,30 @@ Case names used by the CLI/API must match `[A-Za-z0-9][A-Za-z0-9._-]{0,127}`.
 
 `steps` tell the recording LLM what to do; `expect` tells it what to verify with `assert` tool calls. Be specific about visible labels ("the Sign in button") because element lookup is driven by accessible names.
 
+### Per-step expectations
+
+Each entry of `steps` is either a plain string (as above) or an object with `do` and an optional `expect`:
+
+```yaml
+steps:
+  - Click the "Proceed to checkout" button
+  - do: Fill the email field with "buyer@example.com"
+    expect: The Place order button becomes enabled     # single expectation
+  - do: Click "Place order"
+    expect:                                            # or a list
+      - A spinner appears
+      - The spinner disappears
+expect:
+  - The text "Order confirmed" is visible
+```
+
+Semantics:
+
+- A step's `expect` is verified **immediately after that step**, before the next step runs. The recording agent is instructed to issue the corresponding `assert` calls right away, so the resulting replay interleaves the assertions at the point where they hold.
+- This buys **fail-fast locality**: when an intermediate expectation breaks, the run fails at that step instead of at the end, and the failure points at the step that caused it.
+- The top-level `expect` list is unchanged and still required: it holds the final, end-state expectations verified after all steps.
+- String and object steps mix freely; `do` carries exactly the same plain-English instruction a string step would.
+
 ### Relative urls and baseUrl
 
 `url` may be either an absolute URL (`https://shop.example.com/cart`) or a relative path starting with `/` (`/cart`). Anything else (empty string, `cart`, `shop.example.com/cart`) is rejected.

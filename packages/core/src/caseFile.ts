@@ -1,7 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import YAML from 'yaml';
 import { z } from 'zod';
-import type { CaseSpec, ReplayFile } from './types.js';
+import type { CaseSpec, CaseStep, NormalizedCaseStep, ReplayFile } from './types.js';
 
 function isValidCaseUrl(value: string): boolean {
   if (/^[a-z][a-z0-9+.-]*:/i.test(value)) {
@@ -22,14 +22,47 @@ const caseUrlSchema = z
     message: 'url must be an absolute URL (e.g. https://app.example.com/login) or a relative path starting with "/"',
   });
 
+const caseStepSchema = z.union(
+  [
+    z.string().min(1),
+    z
+      .object({
+        do: z.string().min(1, 'do must be a non-empty string'),
+        expect: z.union([z.string().min(1), z.array(z.string().min(1))]).optional(),
+      })
+      .strict(),
+  ],
+  {
+    errorMap: () => ({
+      message: 'each step must be a non-empty string or an object { do: string, expect?: string | string[] }',
+    }),
+  },
+);
+
 const caseSpecSchema = z
   .object({
     name: z.string().min(1, 'name must be a non-empty string'),
     url: caseUrlSchema,
-    steps: z.array(z.string().min(1)).min(1, 'steps must contain at least one step'),
+    steps: z.array(caseStepSchema).min(1, 'steps must contain at least one step'),
     expect: z.array(z.string().min(1)).min(1, 'expect must contain at least one expectation'),
   })
   .strict();
+
+export function normalizeCaseStep(step: CaseStep): NormalizedCaseStep {
+  if (typeof step === 'string') return { instruction: step, expect: [] };
+  const expect = step.expect === undefined ? [] : typeof step.expect === 'string' ? [step.expect] : [...step.expect];
+  return { instruction: step.do, expect };
+}
+
+/** Uniform view over string and object steps, preserving step-scoped expectations. */
+export function normalizeCaseSteps(spec: Pick<CaseSpec, 'steps'>): NormalizedCaseStep[] {
+  return spec.steps.map(normalizeCaseStep);
+}
+
+/** Step instructions as plain strings, regardless of the original step shape. */
+export function stepInstructions(spec: Pick<CaseSpec, 'steps'>): string[] {
+  return spec.steps.map((step) => normalizeCaseStep(step).instruction);
+}
 
 const actStepSchema = z
   .object({
