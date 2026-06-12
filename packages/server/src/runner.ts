@@ -8,10 +8,13 @@ import type {
   ChatProvider,
   HealerFn,
   ReplayFile,
+  ReplayHooks,
   RunOptions,
   RunResult,
 } from '@casepilot/core';
 import { buildHealer } from './healer.js';
+import { addHeal } from './heals.js';
+import { readWorkspaceHealPolicy, type HealPolicy } from './workspaceConfig.js';
 import { loadWorkspaceRegistry, type ProviderRegistryLike } from './providersLoader.js';
 import { assertCaseName, caseFilePath, caseReplayPath, fileExists } from './workspace.js';
 
@@ -24,6 +27,12 @@ export interface RunRequest {
   headed?: boolean;
   /** Replay only. Default true: heal with a chat provider when one is available. */
   heal?: boolean;
+  /** Replay only. Overrides the workspace healPolicy (default "review"). */
+  healPolicy?: HealPolicy;
+  screenshots?: boolean;
+  viewport?: { width: number; height: number };
+  optimizeVideo?: boolean;
+  videoPadMs?: number;
   runDir: string;
 }
 
@@ -33,7 +42,7 @@ export interface RunEngine {
     provider: ChatProvider,
     options: RunOptions,
   ): Promise<{ result: RunResult; replay: ReplayFile }>;
-  replayCase(replay: ReplayFile, options: RunOptions, healer?: HealerFn): Promise<RunResult>;
+  replayCase(replay: ReplayFile, options: RunOptions, healer?: HealerFn, hooks?: ReplayHooks): Promise<RunResult>;
 }
 
 export interface RunnerDeps {
@@ -116,6 +125,10 @@ async function recordViaAgent(
   ];
   if (req.video) mcpArgs.push('--video');
   if (req.headed) mcpArgs.push('--headed');
+  if (req.screenshots) mcpArgs.push('--screenshots');
+  if (req.viewport) mcpArgs.push('--viewport', `${req.viewport.width}x${req.viewport.height}`);
+  if (req.optimizeVideo) mcpArgs.push('--optimize-video');
+  if (req.videoPadMs !== undefined) mcpArgs.push('--video-pad', String(req.videoPadMs));
 
   const transcriptPath = path.join(req.runDir, 'transcript.txt');
   let transcript: string;
@@ -186,10 +199,30 @@ async function pruneEmptyVideos(runDir: string): Promise<void> {
   }
 }
 
+async function buildReplayHooks(req: RunRequest): Promise<ReplayHooks> {
+  const policy = req.healPolicy ?? (await readWorkspaceHealPolicy(req.workspace));
+  if (policy === 'auto') return { applyHeals: true };
+  const runId = path.basename(req.runDir);
+  return {
+    applyHeals: false,
+    onHeal: async (event) => {
+      await addHeal(req.workspace, { ...event, runId });
+    },
+  };
+}
+
 export async function executeRun(req: RunRequest, deps: RunnerDeps = defaultRunnerDeps()): Promise<RunResult> {
   assertCaseName(req.caseName);
   await mkdir(req.runDir, { recursive: true });
-  const options: RunOptions = { headless: !req.headed, video: !!req.video, artifactsDir: req.runDir };
+  const options: RunOptions = {
+    headless: !req.headed,
+    video: !!req.video,
+    artifactsDir: req.runDir,
+    viewport: req.viewport,
+    stepScreenshots: req.screenshots,
+    optimizeVideo: req.optimizeVideo,
+    videoPadMs: req.videoPadMs,
+  };
   const startedAt = new Date().toISOString();
 
   let result: RunResult;
@@ -197,7 +230,7 @@ export async function executeRun(req: RunRequest, deps: RunnerDeps = defaultRunn
     if (req.mode === 'replay') {
       const replay = await loadReplayFile(caseReplayPath(req.workspace, req.caseName));
       const healer = req.heal === false ? undefined : await pickHealer(req, deps);
-      result = await deps.engine.replayCase(replay, options, healer);
+      result = await deps.engine.replayCase(replay, options, healer, await buildReplayHooks(req));
     } else {
       const spec = await loadCaseFile(caseFilePath(req.workspace, req.caseName));
       const registry = await deps.loadRegistry(req.workspace);
@@ -239,4 +272,10 @@ export type { CaseSummary } from './workspace.js';
 export { readRunsFromDir } from './runs.js';
 export type { RunEntry, RunStatus, RunSummary } from './runs.js';
 export { buildHealer } from './healer.js';
+export { addHeal, listHeals, loadHeals, healsFilePath, resolveHeal } from './heals.js';
+export type { HealRecord, HealStatus, HealsFile, HealInput } from './heals.js';
+export { approveHeal, rejectHeal } from './healApproval.js';
+export type { ApprovalOutcome, ApprovalFailure } from './healApproval.js';
+export { readWorkspaceHealPolicy } from './workspaceConfig.js';
+export type { HealPolicy } from './workspaceConfig.js';
 export type { ProviderRegistryLike, ProviderSummary } from './providersLoader.js';

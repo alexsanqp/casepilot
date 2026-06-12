@@ -22,11 +22,17 @@ const assertVisible = (selector: string): AssertStep => ({ kind: 'assert', asser
 describe('recordStepOutcome', () => {
   it('appends successful steps to both results and replay', () => {
     const state = createRecordingState();
-    recordStepOutcome(state, click('#login'), { ok: true, durationMs: 12 });
+    recordStepOutcome(state, click('#login'), { ok: true, durationMs: 12, offsetMs: 340 });
     expect(state.replaySteps).toHaveLength(1);
     expect(state.stepResults).toEqual([
-      { index: 0, step: click('#login'), status: 'passed', error: undefined, durationMs: 12 },
+      { index: 0, step: click('#login'), status: 'passed', error: undefined, durationMs: 12, offsetMs: 340 },
     ]);
+  });
+
+  it('defaults offsetMs to 0 when the caller does not provide it', () => {
+    const state = createRecordingState();
+    recordStepOutcome(state, click('#login'), { ok: true, durationMs: 12 });
+    expect(state.stepResults[0]).toMatchObject({ offsetMs: 0 });
   });
 
   it('keeps failed steps out of the replay but tracks the result', () => {

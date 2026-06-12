@@ -1,4 +1,5 @@
 import { executeRun, type RunnerDeps } from './runner.js';
+import type { HealPolicy } from './workspaceConfig.js';
 import { newRunId, runDirPath } from './workspace.js';
 import type { RunRegistry } from './runs.js';
 
@@ -8,6 +9,11 @@ export interface StartRunParams {
   providerId?: string;
   video?: boolean;
   headed?: boolean;
+  screenshots?: boolean;
+  viewport?: { width: number; height: number };
+  healPolicy?: HealPolicy;
+  optimizeVideo?: boolean;
+  videoPadMs?: number;
 }
 
 export class RunService {
@@ -37,6 +43,11 @@ export class RunService {
         providerId: params.providerId,
         video: params.video,
         headed: params.headed,
+        screenshots: params.screenshots,
+        viewport: params.viewport,
+        healPolicy: params.healPolicy,
+        optimizeVideo: params.optimizeVideo,
+        videoPadMs: params.videoPadMs,
         runDir,
       },
       this.deps,

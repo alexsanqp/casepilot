@@ -1,5 +1,5 @@
 import type { ReplayStep, RunResult, StepResult } from '@casepilot/core';
-import type { RunSummary } from '@casepilot/server/runner';
+import type { HealRecord, RunSummary } from '@casepilot/server/runner';
 
 const STATUS_MARKERS = { passed: '[PASS]', failed: '[FAIL]', healed: '[HEAL]' } as const;
 
@@ -47,6 +47,24 @@ export function formatRunResult(result: RunResult): string {
   if (artifacts.transcriptPath) lines.push(`Transcript: ${artifacts.transcriptPath}`);
   for (const screenshot of artifacts.screenshots) lines.push(`Screenshot: ${screenshot}`);
   return lines.join('\n');
+}
+
+function stepValue(step: ReplayStep): string | undefined {
+  return step.kind === 'act' ? step.value : step.text;
+}
+
+export function formatHealDiff(heal: HealRecord): string {
+  const lines = [
+    `${heal.id}  ${heal.caseName} step ${heal.stepIndex}  [${heal.status}]  (run ${heal.runId}, ${heal.createdAt})`,
+    `  - old: ${describeStep(heal.oldStep)}${stepValue(heal.oldStep) ? ` value=${JSON.stringify(stepValue(heal.oldStep))}` : ''}`,
+    `  + new: ${describeStep(heal.newStep)}${stepValue(heal.newStep) ? ` value=${JSON.stringify(stepValue(heal.newStep))}` : ''}`,
+  ];
+  return lines.join('\n');
+}
+
+export function formatHealList(heals: HealRecord[]): string {
+  if (heals.length === 0) return '(no heals)';
+  return heals.map(formatHealDiff).join('\n');
 }
 
 export function formatRunSummaries(runs: RunSummary[]): string {

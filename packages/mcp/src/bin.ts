@@ -1,12 +1,23 @@
 #!/usr/bin/env node
 import { runBrowserTools } from './browserTools.js';
 import { runControl } from './control.js';
+import { parseViewport } from './viewport.js';
 
-const BOOL_FLAGS = new Set(['--video', '--headed']);
-const VALUE_FLAGS = new Set(['--case', '--artifacts', '--base-url', '--workspace', '--server', '--registry', '--project']);
+const BOOL_FLAGS = new Set(['--video', '--headed', '--screenshots', '--optimize-video']);
+const VALUE_FLAGS = new Set([
+  '--case',
+  '--artifacts',
+  '--base-url',
+  '--workspace',
+  '--server',
+  '--registry',
+  '--project',
+  '--viewport',
+  '--video-pad',
+]);
 
 const USAGE = `Usage:
-  casepilot-mcp browser-tools --case <path.case.yaml> --artifacts <dir> [--video] [--headed] [--base-url <url>]
+  casepilot-mcp browser-tools --case <path.case.yaml> --artifacts <dir> [--video] [--headed] [--screenshots] [--viewport <WxH>] [--optimize-video] [--video-pad <ms>] [--base-url <url>]
   casepilot-mcp control --workspace <dir> [--server <url>]
   casepilot-mcp control --registry <projects.json> [--project <id>] [--server <url>]
 
@@ -53,16 +64,31 @@ function optionalString(flags: Map<string, string | boolean>, flag: string): str
   return typeof value === 'string' ? value : undefined;
 }
 
+function optionalPositiveInt(flags: Map<string, string | boolean>, flag: string): number | undefined {
+  const raw = optionalString(flags, flag);
+  if (raw === undefined) return undefined;
+  const value = Number.parseInt(raw, 10);
+  if (!/^\d+$/.test(raw.trim()) || value <= 0) {
+    throw new Error(`${flag} must be a positive integer, got "${raw}"`);
+  }
+  return value;
+}
+
 async function main(): Promise<void> {
   const [, , command, ...rest] = process.argv;
   switch (command) {
     case 'browser-tools': {
       const flags = parseFlags(rest);
+      const viewportRaw = optionalString(flags, '--viewport');
       await runBrowserTools({
         casePath: requireString(flags, '--case'),
         artifactsDir: requireString(flags, '--artifacts'),
         video: flags.get('--video') === true,
         headed: flags.get('--headed') === true,
+        screenshots: flags.get('--screenshots') === true,
+        viewport: viewportRaw === undefined ? undefined : parseViewport(viewportRaw),
+        optimizeVideo: flags.get('--optimize-video') === true,
+        videoPadMs: optionalPositiveInt(flags, '--video-pad'),
         baseUrl: optionalString(flags, '--base-url'),
       });
       break;

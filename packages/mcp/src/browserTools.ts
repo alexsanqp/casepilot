@@ -4,7 +4,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
-import { BrowserSession, loadCaseFile, resolveUrl, saveReplayFile } from '@casepilot/core';
+import { BrowserSession, loadCaseFile, optimizeVideo, resolveUrl, saveReplayFile } from '@casepilot/core';
 import type { ActStep, AssertStep, RunOptions, RunResult } from '@casepilot/core';
 import { actInputShape, assertInputShape, toActStep, toAssertStep } from './steps.js';
 import { createRecordingState, finalizeRecording, recordStepOutcome } from './recording.js';
@@ -14,6 +14,10 @@ export interface BrowserToolsOptions {
   artifactsDir: string;
   video?: boolean;
   headed?: boolean;
+  screenshots?: boolean;
+  viewport?: { width: number; height: number };
+  optimizeVideo?: boolean;
+  videoPadMs?: number;
   baseUrl?: string;
   /** Test seam; defaults to BrowserSession.launch. */
   launchSession?: (options: RunOptions) => Promise<BrowserSession>;
@@ -64,6 +68,8 @@ export async function createBrowserToolsServer(options: BrowserToolsOptions): Pr
       video: !!options.video,
       artifactsDir: options.artifactsDir,
       baseUrl: options.baseUrl,
+      viewport: options.viewport,
+      stepScreenshots: !!options.screenshots,
     });
     try {
       await session.goto(caseSpec.url);
@@ -160,13 +166,14 @@ export async function createBrowserToolsServer(options: BrowserToolsOptions): Pr
         return text(`error: ${errorMessage(err)}`);
       }
       const t0 = Date.now();
+      const offsetMs = t0 - session.startedAt;
       try {
         await session.act(step);
-        recordStepOutcome(state, step, { ok: true, durationMs: Date.now() - t0 });
+        recordStepOutcome(state, step, { ok: true, durationMs: Date.now() - t0, offsetMs });
         return text(`ok: ${step.action} executed${step.selector ? ` on ${step.selector}` : ''}`);
       } catch (err) {
         const error = errorMessage(err);
-        recordStepOutcome(state, step, { ok: false, error, durationMs: Date.now() - t0 });
+        recordStepOutcome(state, step, { ok: false, error, durationMs: Date.now() - t0, offsetMs });
         return text(`error: act ${step.action} failed: ${error}`);
       }
     },
@@ -190,8 +197,9 @@ export async function createBrowserToolsServer(options: BrowserToolsOptions): Pr
         return text(`error: ${errorMessage(err)}`);
       }
       const t0 = Date.now();
+      const offsetMs = t0 - session.startedAt;
       const { ok, detail } = await session.assert(step);
-      recordStepOutcome(state, step, { ok, error: detail, durationMs: Date.now() - t0 });
+      recordStepOutcome(state, step, { ok, error: detail, durationMs: Date.now() - t0, offsetMs });
       return text(ok ? `ok: ${detail}` : `error: assert failed: ${detail}`);
     },
   );
@@ -222,6 +230,10 @@ export async function createBrowserToolsServer(options: BrowserToolsOptions): Pr
           ({ videoPath } = await activeSession.close());
           activeSession = undefined;
         }
+        const optimizedVideoPath =
+          options.optimizeVideo && videoPath
+            ? await optimizeVideo(videoPath, state.stepResults, { padMs: options.videoPadMs })
+            : undefined;
         const replayPath = path.join(options.artifactsDir, 'replay.json');
         await saveReplayFile(replayPath, final.replay);
         const result: RunResult = {
@@ -230,7 +242,7 @@ export async function createBrowserToolsServer(options: BrowserToolsOptions): Pr
           verdict: final.verdict,
           explanation: final.explanation,
           steps: state.stepResults,
-          artifacts: { videoPath, replayPath, screenshots: [] },
+          artifacts: { videoPath, optimizedVideoPath, replayPath, screenshots: [] },
           startedAt,
           finishedAt: new Date().toISOString(),
         };

@@ -30,7 +30,7 @@ export function createRecordingState(): RecordingState {
 export function recordStepOutcome(
   state: RecordingState,
   step: ReplayStep,
-  outcome: { ok: boolean; error?: string; durationMs: number },
+  outcome: { ok: boolean; error?: string; durationMs: number; offsetMs?: number },
 ): void {
   state.stepResults.push({
     index: state.replaySteps.length,
@@ -38,6 +38,7 @@ export function recordStepOutcome(
     status: outcome.ok ? 'passed' : 'failed',
     error: outcome.ok ? undefined : outcome.error ?? 'unknown error',
     durationMs: outcome.durationMs,
+    offsetMs: outcome.offsetMs ?? 0,
   });
   if (outcome.ok) state.replaySteps.push(step);
 }

@@ -1,9 +1,31 @@
 import { Command } from 'commander';
+import { parseHealPolicy, parseVideoPad, parseViewport, type Viewport } from './options.js';
 
 export interface CliActions {
   init(opts: { workspace: string }): Promise<void>;
-  record(opts: { workspace: string; caseName: string; provider?: string; video: boolean; headed: boolean }): Promise<void>;
-  run(opts: { workspace: string; caseName: string; video: boolean; headed: boolean; heal: boolean }): Promise<void>;
+  record(opts: {
+    workspace: string;
+    caseName: string;
+    provider?: string;
+    video: boolean;
+    headed: boolean;
+    screenshots: boolean;
+    viewport?: Viewport;
+    optimizeVideo: boolean;
+    videoPadMs?: number;
+  }): Promise<void>;
+  run(opts: {
+    workspace: string;
+    caseName: string;
+    video: boolean;
+    headed: boolean;
+    heal: boolean;
+    healPolicy?: 'review' | 'auto';
+    screenshots: boolean;
+    viewport?: Viewport;
+    optimizeVideo: boolean;
+    videoPadMs?: number;
+  }): Promise<void>;
   export(opts: { workspace: string; caseName: string; out?: string }): Promise<void>;
   runs(opts: { workspace: string; server?: string }): Promise<void>;
   report(opts: { workspace: string; runId: string; server?: string }): Promise<void>;
@@ -12,6 +34,9 @@ export interface CliActions {
   projectsList(opts: { registry?: string }): Promise<void>;
   projectsAdd(opts: { path: string; name?: string; registry?: string }): Promise<void>;
   projectsRemove(opts: { id: string; registry?: string }): Promise<void>;
+  healsList(opts: { workspace: string; all: boolean }): Promise<void>;
+  healsApprove(opts: { workspace: string; healId: string }): Promise<void>;
+  healsReject(opts: { workspace: string; healId: string }): Promise<void>;
 }
 
 export function createProgram(actions: CliActions): Command {
@@ -38,15 +63,36 @@ export function createProgram(actions: CliActions): Command {
     .option('--provider <id>', 'provider id from casepilot.config.yaml')
     .option('--video', 'record a video of the run')
     .option('--headed', 'run with a visible browser')
-    .action(async (caseName: string, opts: { provider?: string; video?: boolean; headed?: boolean }) => {
-      await actions.record({
-        workspace: workspace(),
-        caseName,
-        provider: opts.provider,
-        video: !!opts.video,
-        headed: !!opts.headed,
-      });
-    });
+    .option('--screenshots', 'capture a screenshot after every step')
+    .option('--viewport <WxH>', 'browser viewport, e.g. 1920x1080', parseViewport)
+    .option('--optimize-video', 'also write an idle-trimmed copy of the run video')
+    .option('--video-pad <ms>', 'padding kept around each step when trimming idle video time', parseVideoPad)
+    .action(
+      async (
+        caseName: string,
+        opts: {
+          provider?: string;
+          video?: boolean;
+          headed?: boolean;
+          screenshots?: boolean;
+          viewport?: Viewport;
+          optimizeVideo?: boolean;
+          videoPad?: number;
+        },
+      ) => {
+        await actions.record({
+          workspace: workspace(),
+          caseName,
+          provider: opts.provider,
+          video: !!opts.video,
+          headed: !!opts.headed,
+          screenshots: !!opts.screenshots,
+          viewport: opts.viewport,
+          optimizeVideo: !!opts.optimizeVideo,
+          videoPadMs: opts.videoPad,
+        });
+      },
+    );
 
   program
     .command('run')
@@ -55,15 +101,39 @@ export function createProgram(actions: CliActions): Command {
     .option('--video', 'record a video of the run')
     .option('--headed', 'run with a visible browser')
     .option('--no-heal', 'disable AI healing of failed steps')
-    .action(async (caseName: string, opts: { video?: boolean; headed?: boolean; heal: boolean }) => {
-      await actions.run({
-        workspace: workspace(),
-        caseName,
-        video: !!opts.video,
-        headed: !!opts.headed,
-        heal: opts.heal,
-      });
-    });
+    .option('--heal-policy <policy>', 'review (queue heals for approval) or auto (apply immediately)', parseHealPolicy)
+    .option('--screenshots', 'capture a screenshot after every step')
+    .option('--viewport <WxH>', 'browser viewport, e.g. 1920x1080', parseViewport)
+    .option('--optimize-video', 'also write an idle-trimmed copy of the run video')
+    .option('--video-pad <ms>', 'padding kept around each step when trimming idle video time', parseVideoPad)
+    .action(
+      async (
+        caseName: string,
+        opts: {
+          video?: boolean;
+          headed?: boolean;
+          heal: boolean;
+          healPolicy?: 'review' | 'auto';
+          screenshots?: boolean;
+          viewport?: Viewport;
+          optimizeVideo?: boolean;
+          videoPad?: number;
+        },
+      ) => {
+        await actions.run({
+          workspace: workspace(),
+          caseName,
+          video: !!opts.video,
+          headed: !!opts.headed,
+          heal: opts.heal,
+          healPolicy: opts.healPolicy,
+          screenshots: !!opts.screenshots,
+          viewport: opts.viewport,
+          optimizeVideo: !!opts.optimizeVideo,
+          videoPadMs: opts.videoPad,
+        });
+      },
+    );
 
   program
     .command('export')
@@ -129,6 +199,32 @@ export function createProgram(actions: CliActions): Command {
     .option('--registry <file>', 'project registry file (default ~/.casepilot/projects.json)')
     .action(async (id: string, opts: { registry?: string }) => {
       await actions.projectsRemove({ id, registry: opts.registry });
+    });
+
+  const heals = program.command('heals').description('Review healed steps queued by replay runs (heals.json)');
+
+  heals
+    .command('list')
+    .description('List queued heals (pending by default)')
+    .option('--all', 'include approved and rejected heals')
+    .action(async (opts: { all?: boolean }) => {
+      await actions.healsList({ workspace: workspace(), all: !!opts.all });
+    });
+
+  heals
+    .command('approve')
+    .description('Apply a pending heal into the case replay file')
+    .argument('<id>', 'heal id')
+    .action(async (healId: string) => {
+      await actions.healsApprove({ workspace: workspace(), healId });
+    });
+
+  heals
+    .command('reject')
+    .description('Reject a pending heal without touching the replay')
+    .argument('<id>', 'heal id')
+    .action(async (healId: string) => {
+      await actions.healsReject({ workspace: workspace(), healId });
     });
 
   program

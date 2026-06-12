@@ -2,7 +2,7 @@ import { createReadStream } from 'node:fs';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import YAML from 'yaml';
 import { z } from 'zod';
-import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import { exportToPlaywrightSpec, loadReplayFile, parseCaseSpec } from '@casepilot/core';
 import type { CaseSpec, ReplayFile } from '@casepilot/core';
 import {
@@ -14,7 +14,11 @@ import {
   listCases,
 } from './workspace.js';
 import type { ProviderRegistryLike } from './providersLoader.js';
-import type { ProjectContext, ProjectManager } from './projectManager.js';
+import type { ProjectManager } from './projectManager.js';
+import type { ResolveContext } from './routeContext.js';
+import { registerHealRoutes } from './healRoutes.js';
+import { registerArtifactRoutes } from './artifactRoutes.js';
+import { registerFsRoutes } from './fsRoutes.js';
 
 export interface ApiDeps {
   version: string;
@@ -30,6 +34,13 @@ const postRunBodySchema = z.object({
   mode: z.enum(['record', 'replay']),
   video: z.boolean().optional(),
   headed: z.boolean().optional(),
+  screenshots: z.boolean().optional(),
+  viewport: z
+    .object({ width: z.number().int().positive(), height: z.number().int().positive() })
+    .optional(),
+  healPolicy: z.enum(['review', 'auto']).optional(),
+  optimizeVideo: z.boolean().optional(),
+  videoPadMs: z.number().int().positive().optional(),
 });
 
 const postProjectBodySchema = z.object({
@@ -40,8 +51,6 @@ const postProjectBodySchema = z.object({
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
-
-type ResolveContext = (req: FastifyRequest, reply: FastifyReply) => Promise<ProjectContext | undefined>;
 
 function registerProjectScopedRoutes(app: FastifyInstance, deps: ApiDeps, base: string, resolve: ResolveContext): void {
   app.get(`${base}/cases`, async (req, reply) => {
@@ -135,11 +144,23 @@ function registerProjectScopedRoutes(app: FastifyInstance, deps: ApiDeps, base: 
     if (!ctx) return reply;
     const body = postRunBodySchema.safeParse(req.body);
     if (!body.success) {
-      return reply
-        .status(400)
-        .send({ error: 'body must be {case, mode: "record"|"replay", provider?, video?, headed?}' });
+      return reply.status(400).send({
+        error:
+          'body must be {case, mode: "record"|"replay", provider?, video?, headed?, screenshots?, viewport?: {width, height}, healPolicy?: "review"|"auto", optimizeVideo?, videoPadMs?}',
+      });
     }
-    const { case: caseName, mode, provider, video, headed } = body.data;
+    const {
+      case: caseName,
+      mode,
+      provider,
+      video,
+      headed,
+      screenshots,
+      viewport,
+      healPolicy,
+      optimizeVideo,
+      videoPadMs,
+    } = body.data;
     if (!isSafeName(caseName)) return reply.status(400).send({ error: `invalid case name "${caseName}"` });
     if (!(await fileExists(caseFilePath(ctx.workspace, caseName)))) {
       return reply.status(404).send({ error: `case "${caseName}" not found` });
@@ -147,7 +168,18 @@ function registerProjectScopedRoutes(app: FastifyInstance, deps: ApiDeps, base: 
     if (mode === 'replay' && !(await fileExists(caseReplayPath(ctx.workspace, caseName)))) {
       return reply.status(404).send({ error: `no replay recorded for case "${caseName}"; record it first` });
     }
-    const { runId } = ctx.service.start({ caseName, mode, providerId: provider, video, headed });
+    const { runId } = ctx.service.start({
+      caseName,
+      mode,
+      providerId: provider,
+      video,
+      headed,
+      screenshots,
+      viewport,
+      healPolicy,
+      optimizeVideo,
+      videoPadMs,
+    });
     return reply.status(202).send({ runId });
   });
 
@@ -176,6 +208,17 @@ function registerProjectScopedRoutes(app: FastifyInstance, deps: ApiDeps, base: 
     return reply.header('content-type', 'video/webm').send(createReadStream(videoPath));
   });
 
+  app.get<{ Params: { id: string } }>(`${base}/runs/:id/video/optimized`, async (req, reply) => {
+    const ctx = await resolve(req, reply);
+    if (!ctx) return reply;
+    const entry = ctx.registry.get(req.params.id);
+    const optimizedVideoPath = entry?.result?.artifacts.optimizedVideoPath;
+    if (!optimizedVideoPath || !(await fileExists(optimizedVideoPath))) {
+      return reply.status(404).send({ error: `no optimized video for run "${req.params.id}"` });
+    }
+    return reply.header('content-type', 'video/webm').send(createReadStream(optimizedVideoPath));
+  });
+
   app.get<{ Params: { id: string } }>(`${base}/runs/:id/transcript`, async (req, reply) => {
     const ctx = await resolve(req, reply);
     if (!ctx) return reply;
@@ -186,6 +229,9 @@ function registerProjectScopedRoutes(app: FastifyInstance, deps: ApiDeps, base: 
     }
     return reply.header('content-type', 'text/plain; charset=utf-8').send(await readFile(transcriptPath, 'utf8'));
   });
+
+  registerHealRoutes(app, base, resolve);
+  registerArtifactRoutes(app, base, resolve);
 }
 
 export function registerApiRoutes(app: FastifyInstance, deps: ApiDeps): void {
@@ -242,4 +288,5 @@ export function registerApiRoutes(app: FastifyInstance, deps: ApiDeps): void {
 
   registerProjectScopedRoutes(app, deps, '/api/projects/:projectId', resolveScoped);
   registerProjectScopedRoutes(app, deps, '/api', resolveDefault);
+  registerFsRoutes(app);
 }

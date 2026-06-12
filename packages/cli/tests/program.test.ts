@@ -14,6 +14,9 @@ function stubActions(): CliActions {
     projectsList: vi.fn(async () => {}),
     projectsAdd: vi.fn(async () => {}),
     projectsRemove: vi.fn(async () => {}),
+    healsList: vi.fn(async () => {}),
+    healsApprove: vi.fn(async () => {}),
+    healsReject: vi.fn(async () => {}),
   };
 }
 
@@ -45,6 +48,10 @@ describe('casepilot CLI parsing', () => {
       provider: 'lmstudio',
       video: true,
       headed: true,
+      screenshots: false,
+      viewport: undefined,
+      optimizeVideo: false,
+      videoPadMs: undefined,
     });
   });
 
@@ -57,7 +64,31 @@ describe('casepilot CLI parsing', () => {
       provider: undefined,
       video: false,
       headed: false,
+      screenshots: false,
+      viewport: undefined,
+      optimizeVideo: false,
+      videoPadMs: undefined,
     });
+  });
+
+  it('parses record --screenshots and --viewport', async () => {
+    const actions = stubActions();
+    await parse(actions, ['record', 'login', '--screenshots', '--viewport', '1280x720']);
+    expect(actions.record).toHaveBeenCalledWith(
+      expect.objectContaining({ screenshots: true, viewport: { width: 1280, height: 720 } }),
+    );
+  });
+
+  it('rejects a malformed --viewport', async () => {
+    const actions = stubActions();
+    await expect(parse(actions, ['record', 'login', '--viewport', 'huge'])).rejects.toThrow();
+    expect(actions.record).not.toHaveBeenCalled();
+  });
+
+  it('rejects a zero-dimension --viewport', async () => {
+    const actions = stubActions();
+    await expect(parse(actions, ['run', 'login', '--viewport', '0x600'])).rejects.toThrow();
+    expect(actions.run).not.toHaveBeenCalled();
   });
 
   it('parses run with heal enabled by default', async () => {
@@ -69,6 +100,11 @@ describe('casepilot CLI parsing', () => {
       video: false,
       headed: false,
       heal: true,
+      healPolicy: undefined,
+      screenshots: false,
+      viewport: undefined,
+      optimizeVideo: false,
+      videoPadMs: undefined,
     });
   });
 
@@ -81,7 +117,54 @@ describe('casepilot CLI parsing', () => {
       video: true,
       headed: false,
       heal: false,
+      healPolicy: undefined,
+      screenshots: false,
+      viewport: undefined,
+      optimizeVideo: false,
+      videoPadMs: undefined,
     });
+  });
+
+  it('parses run --heal-policy auto and --screenshots/--viewport', async () => {
+    const actions = stubActions();
+    await parse(actions, ['run', 'login', '--heal-policy', 'auto', '--screenshots', '--viewport', '1920x1080']);
+    expect(actions.run).toHaveBeenCalledWith(
+      expect.objectContaining({
+        healPolicy: 'auto',
+        screenshots: true,
+        viewport: { width: 1920, height: 1080 },
+      }),
+    );
+  });
+
+  it('parses record --optimize-video and --video-pad', async () => {
+    const actions = stubActions();
+    await parse(actions, ['record', 'login', '--video', '--optimize-video', '--video-pad', '250']);
+    expect(actions.record).toHaveBeenCalledWith(
+      expect.objectContaining({ video: true, optimizeVideo: true, videoPadMs: 250 }),
+    );
+  });
+
+  it('parses run --optimize-video without --video-pad', async () => {
+    const actions = stubActions();
+    await parse(actions, ['run', 'login', '--video', '--optimize-video']);
+    expect(actions.run).toHaveBeenCalledWith(
+      expect.objectContaining({ optimizeVideo: true, videoPadMs: undefined }),
+    );
+  });
+
+  it('rejects a non-positive --video-pad', async () => {
+    const actions = stubActions();
+    await expect(parse(actions, ['run', 'login', '--video-pad', '-50'])).rejects.toThrow();
+    await expect(parse(actions, ['record', 'login', '--video-pad', '0'])).rejects.toThrow();
+    expect(actions.run).not.toHaveBeenCalled();
+    expect(actions.record).not.toHaveBeenCalled();
+  });
+
+  it('rejects an unknown --heal-policy value', async () => {
+    const actions = stubActions();
+    await expect(parse(actions, ['run', 'login', '--heal-policy', 'yolo'])).rejects.toThrow();
+    expect(actions.run).not.toHaveBeenCalled();
   });
 
   it('parses export with -o', async () => {
@@ -173,6 +256,34 @@ describe('casepilot CLI parsing', () => {
     const actions = stubActions();
     await expect(parse(actions, ['projects', 'add'])).rejects.toThrow();
     expect(actions.projectsAdd).not.toHaveBeenCalled();
+  });
+
+  it('parses heals list (pending only by default)', async () => {
+    const actions = stubActions();
+    await parse(actions, ['heals', 'list']);
+    expect(actions.healsList).toHaveBeenCalledWith({ workspace: process.cwd(), all: false });
+  });
+
+  it('parses heals list --all with a workspace', async () => {
+    const actions = stubActions();
+    await parse(actions, ['--workspace', 'C:\\tmp\\ws', 'heals', 'list', '--all']);
+    expect(actions.healsList).toHaveBeenCalledWith({ workspace: 'C:\\tmp\\ws', all: true });
+  });
+
+  it('parses heals approve and reject with an id', async () => {
+    const actions = stubActions();
+    await parse(actions, ['heals', 'approve', 'ab12cd34']);
+    expect(actions.healsApprove).toHaveBeenCalledWith({ workspace: process.cwd(), healId: 'ab12cd34' });
+
+    const actions2 = stubActions();
+    await parse(actions2, ['heals', 'reject', 'ab12cd34']);
+    expect(actions2.healsReject).toHaveBeenCalledWith({ workspace: process.cwd(), healId: 'ab12cd34' });
+  });
+
+  it('requires the id argument for heals approve', async () => {
+    const actions = stubActions();
+    await expect(parse(actions, ['heals', 'approve'])).rejects.toThrow();
+    expect(actions.healsApprove).not.toHaveBeenCalled();
   });
 
   it('parses mcp', async () => {

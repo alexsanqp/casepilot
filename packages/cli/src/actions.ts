@@ -3,17 +3,21 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { exportToPlaywrightSpec, loadReplayFile } from '@casepilot/core';
 import type { RunResult } from '@casepilot/core';
 import {
+  approveHeal,
   caseReplayPath,
   executeRun,
+  listHeals,
   newRunId,
   readRunsFromDir,
+  rejectHeal,
   resolveMcpBinPath,
   runDirPath,
   runsDir,
+  type ApprovalOutcome,
   type RunSummary,
 } from '@casepilot/server/runner';
 import { initWorkspace } from './init.js';
-import { formatRunResult, formatRunSummaries } from './format.js';
+import { formatHealDiff, formatHealList, formatRunResult, formatRunSummaries } from './format.js';
 import type { CliActions } from './program.js';
 
 export interface CliIo {
@@ -38,6 +42,21 @@ async function fetchJson<T>(url: string): Promise<T> {
   return (await res.json()) as T;
 }
 
+function reportApproval(io: CliIo, outcome: ApprovalOutcome, successSuffix: string): void {
+  if (outcome.ok) {
+    io.out(formatHealDiff(outcome.heal));
+    io.out(`Heal ${outcome.heal.id} ${successSuffix}.`);
+    return;
+  }
+  const messages = {
+    'not-found': 'no heal with that id',
+    'already-resolved': 'heal already resolved',
+    conflict: 'replay step changed since heal was recorded',
+  } as const;
+  io.err(messages[outcome.code]);
+  process.exitCode = 1;
+}
+
 export function createActions(io: CliIo = consoleIo): CliActions {
   return {
     async init({ workspace }) {
@@ -52,7 +71,7 @@ export function createActions(io: CliIo = consoleIo): CliActions {
       io.out('  3. casepilot run example');
     },
 
-    async record({ workspace, caseName, provider, video, headed }) {
+    async record({ workspace, caseName, provider, video, headed, screenshots, viewport, optimizeVideo, videoPadMs }) {
       const ws = path.resolve(workspace);
       const runId = newRunId();
       const runDir = runDirPath(ws, runId);
@@ -64,6 +83,10 @@ export function createActions(io: CliIo = consoleIo): CliActions {
         providerId: provider,
         video,
         headed,
+        screenshots,
+        viewport,
+        optimizeVideo,
+        videoPadMs,
         runDir,
       });
       io.out(formatRunResult(result));
@@ -71,7 +94,7 @@ export function createActions(io: CliIo = consoleIo): CliActions {
       process.exitCode = result.verdict === 'passed' ? 0 : 1;
     },
 
-    async run({ workspace, caseName, video, headed, heal }) {
+    async run({ workspace, caseName, video, headed, heal, healPolicy, screenshots, viewport, optimizeVideo, videoPadMs }) {
       const ws = path.resolve(workspace);
       const runId = newRunId();
       const runDir = runDirPath(ws, runId);
@@ -83,6 +106,11 @@ export function createActions(io: CliIo = consoleIo): CliActions {
         video,
         headed,
         heal,
+        healPolicy,
+        screenshots,
+        viewport,
+        optimizeVideo,
+        videoPadMs,
         runDir,
       });
       io.out(formatRunResult(result));
@@ -174,6 +202,22 @@ export function createActions(io: CliIo = consoleIo): CliActions {
         io.err(`No project with id "${id}" in ${registryPath}`);
         process.exitCode = 1;
       }
+    },
+
+    async healsList({ workspace, all }) {
+      const ws = path.resolve(workspace);
+      const heals = await listHeals(ws, all ? undefined : 'pending');
+      io.out(formatHealList(heals));
+    },
+
+    async healsApprove({ workspace, healId }) {
+      const ws = path.resolve(workspace);
+      reportApproval(io, await approveHeal(ws, healId), 'approved; replay updated');
+    },
+
+    async healsReject({ workspace, healId }) {
+      const ws = path.resolve(workspace);
+      reportApproval(io, await rejectHeal(ws, healId), 'rejected; replay untouched');
     },
 
     async mcp({ workspace }) {

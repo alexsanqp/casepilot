@@ -9,6 +9,19 @@ export {
   type RunRequest,
 } from './runner.js';
 export { buildHealer, extractJsonObject } from './healer.js';
+export {
+  addHeal,
+  healsFilePath,
+  listHeals,
+  loadHeals,
+  resolveHeal,
+  type HealInput,
+  type HealRecord,
+  type HealStatus,
+  type HealsFile,
+} from './heals.js';
+export { approveHeal, rejectHeal, type ApprovalFailure, type ApprovalOutcome } from './healApproval.js';
+export { readWorkspaceHealPolicy, type HealPolicy } from './workspaceConfig.js';
 export { RunRegistry, readRunsFromDir, type RunEntry, type RunStatus, type RunSummary } from './runs.js';
 export { RunService, type StartRunParams } from './service.js';
 export { registerApiRoutes, type ApiDeps } from './routes.js';
