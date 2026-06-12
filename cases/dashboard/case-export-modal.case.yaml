@@ -1,0 +1,13 @@
+name: case-export-modal
+url: http://localhost:7701/
+steps:
+  - Click the "demo-workspace" project name on its project card
+  - Wait for the cases table to appear
+  - In the row for the case "sprset46-project-tag-limit", click the "Export" button
+  - 'Wait for the "Export: sprset46-project-tag-limit" modal to open'
+  - Click the "Copy" button in the modal
+  - Close the modal
+expect:
+  - The export modal showed a code block containing a generated Playwright spec
+  - After clicking Copy the button label briefly changed to "Copied"
+  - The modal is closed and the cases table is visible again

@@ -1,0 +1,14 @@
+name: navigation-sidebar
+url: http://localhost:7701/
+steps:
+  - Click the "demo-workspace" project name on its project card
+  - Wait for the "Cases" heading to appear
+  - Click the "Runs" link in the sidebar navigation
+  - Wait for the "Runs" heading to appear
+  - Click the "Heals" link in the sidebar navigation
+  - Wait for the "Heals" heading to appear
+  - Click the "Cases" link in the sidebar navigation
+expect:
+  - The page shows the "Cases" heading
+  - The page url contains "/cases"
+  - The sidebar health indicator shows "online" with a version number

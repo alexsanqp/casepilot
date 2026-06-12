@@ -1,0 +1,11 @@
+name: cases-list
+url: http://localhost:7701/
+steps:
+  - Click the "demo-workspace" project name on its project card
+  - Wait for the "Cases" heading and the cases table to appear
+  - Find the table row for the case named "example"
+  - Find the table row for the case named "sprset46-project-tag-limit"
+expect:
+  - The cases table has columns "Name", "URL", "Steps", "Replay", "Last verdict" and "Actions"
+  - The row for "sprset46-project-tag-limit" shows a "replay" badge in the Replay column and its action button reads "Re-record"
+  - The row for "example" shows a dash in the Replay column and its action button reads "Record"

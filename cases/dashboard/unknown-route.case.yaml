@@ -1,0 +1,7 @@
+name: unknown-route
+url: http://localhost:7701/this-route-does-not-exist
+steps:
+  - Wait for the page content to finish loading
+expect:
+  - The main content area shows the text "Page not found."
+  - The Casepilot wordmark is still visible in the sidebar

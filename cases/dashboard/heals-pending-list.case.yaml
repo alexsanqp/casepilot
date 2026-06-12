@@ -1,0 +1,11 @@
+name: heals-pending-list
+url: http://localhost:7701/
+steps:
+  - Click the "demo-workspace" project name on its project card
+  - Look at the "Heals" link in the sidebar and note whether it shows a numeric badge
+  - Click the "Heals" link in the sidebar navigation
+  - Wait for the "Heals" heading to appear
+expect:
+  - If pending heals exist, each heal card shows the case name, "step #" number, a run link and an old/new diff with "old" and "new" columns
+  - If no pending heals exist, the page shows the text "No pending heals."
+  - The sidebar Heals badge count matches the number of pending heal cards shown

@@ -1,0 +1,11 @@
+name: projects-browse-directory
+url: http://localhost:7701/
+steps:
+  - Scroll down to the "Add project" section
+  - Click the "Browse" button next to the "Absolute path" input
+  - Wait for the "Select directory" modal to open
+  - Click the first directory entry in the directory list to select it
+  - Click the "Select" button in the modal
+expect:
+  - The "Select directory" modal is closed
+  - The "Absolute path" input now contains the path of the directory that was selected

@@ -1,0 +1,13 @@
+name: projects-add-and-remove
+url: http://localhost:7701/
+steps:
+  - Scroll down to the "Add project" section
+  - Type "selftest-temp" into the "Name" input of the add project form
+  - Type "C:\DISK_D\Projects\casepilot\demo-workspace" into the "Absolute path" input
+  - Click the "Add project" button
+  - Wait for a project card named "selftest-temp" to appear in the project grid
+  - Click the "Remove" button on the "selftest-temp" project card
+  - Accept the browser confirmation dialog that asks to remove the project from the registry
+expect:
+  - The "selftest-temp" project card is no longer visible in the project grid
+  - The "demo-workspace" project card is still visible

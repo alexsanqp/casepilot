@@ -1,0 +1,9 @@
+name: project-switcher
+url: http://localhost:7701/
+steps:
+  - In the sidebar, select "demo-workspace" from the project switcher dropdown labeled "Switch project"
+  - Wait for the "Cases" heading to appear
+  - In the sidebar, select "All projects" from the project switcher dropdown
+expect:
+  - The page shows the "Projects" heading again
+  - The sidebar no longer shows the Cases, Runs and Heals navigation links

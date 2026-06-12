@@ -1,0 +1,11 @@
+name: run-start-replay
+url: http://localhost:7701/
+steps:
+  - Click the "demo-workspace" project name on its project card
+  - Wait for the cases table to appear
+  - In the row for the case "sprset46-project-tag-limit", click the "Run" button
+  - Wait for the "Runs" heading to appear
+expect:
+  - The page url contains "/runs"
+  - The runs table shows a run for case "sprset46-project-tag-limit" at the top with status "running…" or a finished status
+  - The new run row shows a "replay" mode badge

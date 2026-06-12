@@ -1,0 +1,10 @@
+name: projects-add-invalid-path
+url: http://localhost:7701/
+steps:
+  - Scroll down to the "Add project" section
+  - Type "bad-path-project" into the "Name" input of the add project form
+  - Type "C:\definitely\does\not\exist\nowhere" into the "Absolute path" input
+  - Click the "Add project" button
+expect:
+  - An error message is shown below the add project form
+  - No project card named "bad-path-project" appears in the project grid

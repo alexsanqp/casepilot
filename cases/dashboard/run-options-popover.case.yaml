@@ -1,0 +1,17 @@
+name: run-options-popover
+url: http://localhost:7701/
+steps:
+  - Click the "demo-workspace" project name on its project card
+  - Wait for the cases table to appear
+  - In the row for the case "example", click the "Options" button to open the run options panel
+  - Verify the "optimize video" checkbox is disabled while the "video" checkbox is unchecked
+  - Check the "video" checkbox
+  - Check the now enabled "optimize video" checkbox
+  - Check the "screenshots" checkbox
+  - Select "custom" in the "Viewport" dropdown
+  - Type "1600x900" into the "Custom WxH" input that appears
+  - Select "auto" in the "Heal policy (replay)" dropdown
+expect:
+  - The "video", "optimize video" and "screenshots" checkboxes are all checked
+  - The "Custom WxH" input contains "1600x900"
+  - The "Heal policy (replay)" dropdown shows "auto"

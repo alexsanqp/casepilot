@@ -1,0 +1,13 @@
+name: run-detail-steps
+url: http://localhost:7701/
+steps:
+  - Click the "demo-workspace" project name on its project card
+  - Click the "Runs" link in the sidebar navigation
+  - Wait for the runs table to appear
+  - Click the first finished run row in the runs table
+  - Wait for the run detail page with a "Run" heading showing the run id
+expect:
+  - A PASS or FAIL banner is shown with the case name, mode badge, duration and an explanation
+  - The "Steps" section shows a table with columns "#", "Kind", "Action / Assert", "Selector", "Status", "Error" and "Time"
+  - Every step row has a status badge and a duration in the Time column
+  - A "Download artifacts" button is present in the banner

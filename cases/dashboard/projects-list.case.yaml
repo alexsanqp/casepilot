@@ -1,0 +1,9 @@
+name: projects-list
+url: http://localhost:7701/
+steps:
+  - Wait for the "Projects" heading to appear
+  - Find the project card named "demo-workspace" in the project grid
+expect:
+  - The page shows a "Projects" heading
+  - A project card titled "demo-workspace" is visible with its absolute path shown below the name
+  - The "demo-workspace" card shows a case count (for example "2 cases") and a "Last run:" line

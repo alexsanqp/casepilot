@@ -1,0 +1,14 @@
+name: case-editor-create-and-delete
+url: http://localhost:7701/
+steps:
+  - Click the "demo-workspace" project name on its project card
+  - Click the "New case" button in the Cases page header
+  - Wait for the "New case" heading and the editor to appear
+  - Type "selftest-editor-temp" into the "Name" input
+  - 'Verify the "Spec YAML" textarea is pre-filled with a template starting with "name: my-case"'
+  - Click the "Save" button
+  - Wait for the cases table to show a row named "selftest-editor-temp"
+  - In the row for "selftest-editor-temp", click the "Delete" button and accept the confirmation dialog
+expect:
+  - The cases table no longer contains a row named "selftest-editor-temp"
+  - The rows for "example" and "sprset46-project-tag-limit" are still present

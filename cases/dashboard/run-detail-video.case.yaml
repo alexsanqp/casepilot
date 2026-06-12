@@ -1,0 +1,13 @@
+name: run-detail-video
+url: http://localhost:7701/
+steps:
+  - Click the "demo-workspace" project name on its project card
+  - Click the "Runs" link in the sidebar navigation
+  - Wait for the runs table to appear
+  - Open a finished run that was recorded with video enabled
+  - Wait for the "Video" section with the video player to appear
+  - In the "Steps" table, click the row of the second step
+expect:
+  - A video player with browser controls is rendered in the Video section
+  - Clicking the step row highlighted it and moved the video playhead to that step's offset
+  - A "Download video" link is shown below the player
