@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "case": "case-export-modal",
+  "url": "/",
+  "providerUsed": "agent",
+  "recordedAt": "2026-06-12T18:50:39.112Z",
+  "steps": [
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=link[name=\"casepilot\"]",
+      "note": "Step 1: Click the casepilot project name"
+    },
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "selector": "role=link[name=\"project-switcher\"]",
+      "value": "5000",
+      "note": "Step 2: Wait for cases table to appear"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=link[name=\"project-switcher\"]",
+      "note": "Step 3: Click the project-switcher case name link"
+    },
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "selector": "role=heading[name=\"project-switcher\"]",
+      "value": "5000",
+      "note": "Step 4: Wait for case detail page heading"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=button[name=\"Export\"]",
+      "note": "Step 5: Click the Export button in the action bar"
+    },
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "selector": "text=\"Export: project-switcher\"",
+      "value": "5000",
+      "note": "Step 6: Wait for export modal to open"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=button[name=\"Copy\"]",
+      "note": "Step 7: Click the Copy button in the modal"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=button[name=\"Close\"]",
+      "note": "Step 8: Close the modal"
+    },
+    {
+      "kind": "assert",
+      "assert": "absent",
+      "selector": "role=dialog[name=\"Export: project-switcher\"]",
+      "note": "Expectation 3: The modal is closed"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=heading[name=\"project-switcher\"]",
+      "note": "Expectation 3: The case detail page is visible again"
+    },
+    {
+      "kind": "assert",
+      "assert": "absent",
+      "selector": "role=button[name=\"Copy\"]",
+      "note": "Expectation 2: Copy button is gone (replaced by Copied) - confirms label change persisted until close"
+    }
+  ],
+  "meta": {
+    "healCount": 0
+  }
+}

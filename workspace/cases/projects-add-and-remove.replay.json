@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "case": "projects-add-and-remove",
+  "url": "/",
+  "providerUsed": "agent",
+  "recordedAt": "2026-06-12T18:52:22.274Z",
+  "steps": [
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "value": "2000",
+      "note": "Wait for projects to finish loading"
+    },
+    {
+      "kind": "act",
+      "action": "scroll",
+      "selector": "role=heading[name=\"Add project\"]",
+      "note": "Step 1: Scroll down to the Add project section"
+    },
+    {
+      "kind": "act",
+      "action": "fill",
+      "selector": "role=textbox[name=\"Name\"]",
+      "value": "selftest-temp",
+      "note": "Step 2: Type \"selftest-temp\" into the Name input"
+    },
+    {
+      "kind": "act",
+      "action": "fill",
+      "selector": "role=textbox[name=\"Absolute path Browse\"]",
+      "value": "C:\\DISK_D\\Projects\\casepilot\\packages",
+      "note": "Step 3: Type the absolute path into the Absolute path input"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=button[name=\"Add project\"]",
+      "note": "Step 4: Click the Add project button"
+    },
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "value": "3000",
+      "note": "Step 5: Wait for selftest-temp project card to appear"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=button[name=\"Remove project selftest-temp\"]",
+      "note": "Step 6: Click Remove project selftest-temp button"
+    },
+    {
+      "kind": "act",
+      "action": "press",
+      "value": "Enter",
+      "note": "Step 7: Accept the browser confirmation dialog"
+    },
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "value": "2000",
+      "note": "Wait for removal to complete"
+    },
+    {
+      "kind": "assert",
+      "assert": "absent",
+      "selector": "role=link[name=\"selftest-temp\"]",
+      "note": "Expectation 1: selftest-temp project card is no longer visible"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=link[name=\"casepilot\"]",
+      "note": "Expectation 2a: casepilot project card is still visible"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=link[name=\"demo-workspace\"]",
+      "note": "Expectation 2b: demo-workspace project card is still visible"
+    }
+  ],
+  "meta": {
+    "healCount": 0
+  }
+}

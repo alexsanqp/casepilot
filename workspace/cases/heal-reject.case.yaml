@@ -1,11 +1,11 @@
 name: heal-reject
 url: /
 steps:
-  - Click the "demo-workspace" project name on its project card
+  - Click the "casepilot" project name on its project card
   - Click the "Heals" link in the sidebar navigation
   - Wait for the "Heals" heading and at least one pending heal card to appear
   - Note the number of pending heal cards
-  - Click the "Reject" button on the first pending heal card
+  - Find the pending heal card whose step notes mention "Stale demo heal" and click its "Reject" button
   - Wait for the list to refresh
 expect:
   - The rejected heal card is removed from the pending list

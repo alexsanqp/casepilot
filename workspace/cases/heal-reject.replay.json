@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "case": "heal-reject",
+  "url": "/",
+  "providerUsed": "agent",
+  "recordedAt": "2026-06-12T19:02:54.263Z",
+  "steps": [
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "selector": "text=casepilot",
+      "value": "5000",
+      "note": "Wait for casepilot project card to appear"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=link[name=\"casepilot\"]",
+      "note": "Step 1: Click the casepilot project name on its project card"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=link[name=\"Heals 2\"]",
+      "note": "Step 2: Click the Heals link in the sidebar navigation"
+    },
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "selector": "role=heading[name=\"Heals\"]",
+      "value": "5000",
+      "note": "Step 3: Wait for the Heals heading to appear"
+    },
+    {
+      "kind": "act",
+      "action": "scroll",
+      "selector": "main",
+      "value": "down",
+      "note": "Scroll to see all heal card content including notes"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=button[name=\"Reject\"]",
+      "note": "Step 5: Click Reject on the Stale demo heal card (projects-list step #1, heading selector change)"
+    },
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "selector": "role=heading[name=\"Heals\"]",
+      "value": "3000",
+      "note": "Step 6: Wait for the list to refresh after rejection"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=link[name=\"Heals 1\"]",
+      "note": "Expectation 2: Sidebar Heals badge now shows 1 (decreased from 2), confirming pending count decreased by one"
+    },
+    {
+      "kind": "assert",
+      "assert": "absent",
+      "selector": "text=old-removed-project",
+      "note": "Expectation 1: The rejected heal card (step #2, old-removed-project / Stale demo heal) is removed from the pending list"
+    },
+    {
+      "kind": "assert",
+      "assert": "absent",
+      "selector": "text=step #2",
+      "note": "Expectation 1 corroboration: step #2 card is no longer in the list"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=link[name=\"Heals 1\"]",
+      "note": "Expectation 2: Sidebar Heals badge now shows 1 (decreased from 2), confirming pending count decreased by one"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "text=step #1",
+      "note": "Expectation 2 corroboration: exactly one heal card (step #1) remains in the list"
+    }
+  ],
+  "meta": {
+    "healCount": 0
+  }
+}

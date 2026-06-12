@@ -14,8 +14,8 @@
     {
       "kind": "assert",
       "assert": "visible",
-      "selector": "role=heading[name=\"Projects\"]",
-      "note": "Expectation 1: page shows a \"Projects\" heading"
+      "selector": "h1:has-text(\"Projects\")",
+      "note": "Expectation 1: page shows a \"Projects\" heading (healed selector)"
     },
     {
       "kind": "assert",
@@ -43,6 +43,6 @@
     }
   ],
   "meta": {
-    "healCount": 0
+    "healCount": 1
   }
 }

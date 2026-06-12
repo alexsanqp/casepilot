@@ -1,0 +1,160 @@
+{
+  "version": 1,
+  "case": "run-detail-steps",
+  "url": "/",
+  "providerUsed": "agent",
+  "recordedAt": "2026-06-12T19:10:03.564Z",
+  "steps": [
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "selector": "text=casepilot",
+      "value": "5000",
+      "note": "Wait for projects to load"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=link[name=\"casepilot\"]",
+      "note": "Step 1: Click the casepilot project name on its project card"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=link[name=\"cases-list\"]",
+      "note": "Step 2: Click the case name link \"cases-list\" in the table"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "table >> tbody >> tr:first-child",
+      "note": "Step 4: Click the first finished row in the run history table"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=heading[name=\"Run 20260612-182713-26d8b5\"]",
+      "note": "Step 5: Run detail page with Run heading showing run id"
+    },
+    {
+      "kind": "assert",
+      "assert": "textPresent",
+      "selector": "main",
+      "text": "PASS",
+      "note": "Expectation 1: PASS banner is shown"
+    },
+    {
+      "kind": "assert",
+      "assert": "textPresent",
+      "selector": "main",
+      "text": "cases-list",
+      "note": "Expectation 1: Banner shows the case name"
+    },
+    {
+      "kind": "assert",
+      "assert": "textPresent",
+      "selector": "main",
+      "text": "record",
+      "note": "Expectation 1: mode badge is shown"
+    },
+    {
+      "kind": "assert",
+      "assert": "textPresent",
+      "selector": "main",
+      "text": "2m 14s",
+      "note": "Expectation 1: duration shown in banner"
+    },
+    {
+      "kind": "assert",
+      "assert": "textPresent",
+      "selector": "main",
+      "text": "All expectations verified",
+      "note": "Expectation 1: explanation text is shown in banner"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=link[name=\"Download artifacts\"]",
+      "note": "Expectation 4: Download artifacts button is present in the banner"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=heading[name=\"Steps\"]",
+      "note": "Expectation 2: Steps section is present"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=columnheader[name=\"#\"]",
+      "note": "Expectation 2: Steps table has # column"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=columnheader[name=\"Kind\"]",
+      "note": "Expectation 2: Steps table has Kind column"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=columnheader[name=\"Action / Assert\"]",
+      "note": "Expectation 2: Steps table has Action / Assert column"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=columnheader[name=\"Selector\"]",
+      "note": "Expectation 2: Steps table has Selector column"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=columnheader[name=\"Status\"]",
+      "note": "Expectation 2: Steps table has Status column"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=columnheader[name=\"Error\"]",
+      "note": "Expectation 2: Steps table has Error column"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=columnheader[name=\"Time\"]",
+      "note": "Expectation 2: Steps table has Time column"
+    },
+    {
+      "kind": "assert",
+      "assert": "textPresent",
+      "selector": "table tbody tr:first-child td:nth-child(5)",
+      "text": "passed",
+      "note": "Expectation 3: first step row has a status badge"
+    },
+    {
+      "kind": "assert",
+      "assert": "textPresent",
+      "selector": "table tbody tr:first-child td:nth-child(7)",
+      "text": "ms",
+      "note": "Expectation 3: first step row has a duration in the Time column"
+    },
+    {
+      "kind": "assert",
+      "assert": "textPresent",
+      "selector": "table tbody tr:nth-child(2) td:nth-child(5)",
+      "text": "passed",
+      "note": "Expectation 3: second step row has a status badge"
+    },
+    {
+      "kind": "assert",
+      "assert": "textPresent",
+      "selector": "table tbody tr:nth-child(2) td:nth-child(7)",
+      "text": "ms",
+      "note": "Expectation 3: second step row has a duration in the Time column"
+    }
+  ],
+  "meta": {
+    "healCount": 0
+  }
+}

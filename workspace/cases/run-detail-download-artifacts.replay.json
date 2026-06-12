@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "case": "run-detail-download-artifacts",
+  "url": "/",
+  "providerUsed": "agent",
+  "recordedAt": "2026-06-12T19:11:39.209Z",
+  "steps": [
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "selector": "text=casepilot",
+      "value": "5000",
+      "note": "Wait for projects to load"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=link[name=\"casepilot\"]",
+      "note": "Step 1: Click the casepilot project name on its project card"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=link[name=\"cases-list\"]",
+      "note": "Step 2: Click the cases-list case name link in the table"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=heading[name=\"Run history\"]",
+      "note": "Step 3: Run history section is present on the case detail page"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=row[name=\"20260612 record agent done PASS 2m 14s 12.06.2026, 21:27:15\"]",
+      "note": "Step 4: Click the first finished row in the run history table"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "strong",
+      "note": "Step 5: PASS banner is visible on the run detail page"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=link[name=\"Download artifacts\"]",
+      "note": "Expectation 1a: Download artifacts button is present in the banner"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=link[name=\"Download artifacts\"]",
+      "note": "Step 6: Click the Download artifacts button in the banner"
+    },
+    {
+      "kind": "assert",
+      "assert": "urlContains",
+      "text": "/p/casepilot/cases/cases-list",
+      "note": "Expectation 2: Run detail page stays open after download starts (URL still on run detail)"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=link[name=\"Download artifacts\"]",
+      "note": "Expectation 2b: Download artifacts link still visible confirming page did not navigate away"
+    }
+  ],
+  "meta": {
+    "healCount": 0
+  }
+}
