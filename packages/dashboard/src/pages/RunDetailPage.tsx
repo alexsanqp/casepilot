@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { errorMessage, getCase, getRun, getTranscript } from '../api/client';
-import type { ReplayFile, RunResult } from '../api/types';
+import { archiveUrl, errorMessage, getCase, getRun, getTranscript, screenshotUrl } from '../api/client';
+import type { ReplayFile, RunResult, RunStepResult } from '../api/types';
 import { ModeBadge } from '../components/Badge';
 import { StepTable } from '../components/StepTable';
-import { VideoPlayer } from '../components/VideoPlayer';
+import { SyncedVideo, type SyncedVideoHandle } from '../components/SyncedVideo';
 import { usePolling } from '../hooks/usePolling';
 import { runDuration } from '../lib/format';
 
@@ -55,6 +55,15 @@ function RunResultView({
   runId: string;
   result: RunResult;
 }) {
+  const videoRef = useRef<SyncedVideoHandle>(null);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const hasVideo = Boolean(result.artifacts.videoPath);
+
+  const selectStep = (step: RunStepResult) => {
+    setActiveIndex(step.index);
+    videoRef.current?.seekTo(step.offsetMs);
+  };
+
   return (
     <div className="run-detail">
       <div className={`banner ${result.verdict === 'passed' ? 'banner-pass' : 'banner-fail'}`}>
@@ -64,19 +73,37 @@ function RunResultView({
           {runDuration(result.startedAt, result.finishedAt)}
         </span>
         <p>{result.explanation}</p>
+        <p>
+          <a className="btn" href={archiveUrl(projectId, runId)} download>
+            Download artifacts
+          </a>
+        </p>
       </div>
+
+      {hasVideo && (
+        <section>
+          <h2>Video</h2>
+          <SyncedVideo
+            ref={videoRef}
+            projectId={projectId}
+            runId={runId}
+            steps={result.steps}
+            activeIndex={activeIndex}
+            onMarkerClick={(step) => setActiveIndex(step.index)}
+            hasOptimized={Boolean(result.artifacts.optimizedVideoPath)}
+          />
+        </section>
+      )}
 
       <section>
         <h2>Steps</h2>
-        <StepTable steps={result.steps} />
+        <StepTable
+          steps={result.steps}
+          activeIndex={activeIndex}
+          onRowClick={hasVideo ? selectStep : undefined}
+          screenshotUrlFor={(fileName) => screenshotUrl(projectId, runId, fileName)}
+        />
       </section>
-
-      {result.artifacts.videoPath && (
-        <section>
-          <h2>Video</h2>
-          <VideoPlayer projectId={projectId} runId={runId} />
-        </section>
-      )}
 
       <TranscriptSection projectId={projectId} runId={runId} />
       <ReplaySection projectId={projectId} caseName={result.case} />

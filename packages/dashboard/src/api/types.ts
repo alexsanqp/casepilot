@@ -69,12 +69,24 @@ export type RunStatus = 'running' | 'done' | 'error';
 export type Verdict = 'passed' | 'failed';
 export type StepStatus = 'passed' | 'failed' | 'healed';
 
+export type HealPolicy = 'review' | 'auto';
+
+export interface Viewport {
+  width: number;
+  height: number;
+}
+
 export interface StartRunRequest {
   case: string;
   provider?: string;
   mode: RunMode;
   video?: boolean;
   headed?: boolean;
+  screenshots?: boolean;
+  viewport?: Viewport;
+  healPolicy?: HealPolicy;
+  optimizeVideo?: boolean;
+  videoPadMs?: number;
 }
 
 export interface StartRunResponse {
@@ -98,10 +110,13 @@ export interface RunStepResult {
   status: StepStatus;
   error?: string;
   durationMs: number;
+  offsetMs: number;
+  screenshot?: string;
 }
 
 export interface RunArtifacts {
   videoPath?: string;
+  optimizedVideoPath?: string;
   replayPath?: string;
   screenshots: string[];
   transcriptPath?: string;
@@ -126,4 +141,37 @@ export interface RunDetail {
 
 export interface ExportResponse {
   specTs: string;
+}
+
+export type HealStatus = 'pending' | 'approved' | 'rejected';
+
+export interface Heal {
+  id: string;
+  caseName: string;
+  stepIndex: number;
+  oldStep: ReplayStep;
+  newStep: ReplayStep;
+  runId: string;
+  createdAt: string;
+  status: HealStatus;
+  resolvedAt?: string;
+}
+
+export interface HealsResponse {
+  heals: Heal[];
+}
+
+export interface HealActionResponse {
+  applied: boolean;
+}
+
+export interface FsDir {
+  name: string;
+  path: string;
+}
+
+export interface FsDirsResponse {
+  path: string;
+  parent: string | null;
+  dirs: FsDir[];
 }

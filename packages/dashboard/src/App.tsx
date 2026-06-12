@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import {
   BrowserRouter,
   Link,
@@ -10,14 +11,16 @@ import {
   useNavigate,
   useParams,
 } from 'react-router-dom';
-import { getHealth } from './api/client';
+import { getHealth, listHeals } from './api/client';
 import { usePolling } from './hooks/usePolling';
 import { CaseEditorPage } from './pages/CaseEditorPage';
 import { CasesPage } from './pages/CasesPage';
+import { HealsPage } from './pages/HealsPage';
 import { ProjectsPage } from './pages/ProjectsPage';
 import { RunDetailPage } from './pages/RunDetailPage';
 import { RunsPage } from './pages/RunsPage';
 import { ProjectsProvider, useProjects } from './state/projects';
+import { RunToastsProvider } from './state/runToasts';
 
 function HealthIndicator() {
   const { data, error, loading } = usePolling(getHealth, 10_000);
@@ -58,6 +61,19 @@ function ProjectSwitcher({ projectId }: { projectId: string }) {
   );
 }
 
+function HealsNavLink({ projectId }: { projectId: string }) {
+  const fetchHeals = useCallback(() => listHeals(projectId), [projectId]);
+  const { data } = usePolling(fetchHeals, 10_000);
+  const pending = data?.heals.length ?? 0;
+
+  return (
+    <NavLink to={`/p/${encodeURIComponent(projectId)}/heals`} end={false}>
+      Heals
+      {pending > 0 && <span className="nav-badge">{pending}</span>}
+    </NavLink>
+  );
+}
+
 function Sidebar() {
   const match = useMatch('/p/:projectId/*');
   const projectId = match?.params.projectId ?? '';
@@ -76,6 +92,7 @@ function Sidebar() {
           <NavLink to={`/p/${encodeURIComponent(projectId)}/runs`} end={false}>
             Runs
           </NavLink>
+          <HealsNavLink projectId={projectId} />
         </nav>
       )}
       <HealthIndicator />
@@ -104,7 +121,8 @@ export function App() {
   return (
     <BrowserRouter>
       <ProjectsProvider>
-        <div className="layout">
+        <RunToastsProvider>
+          <div className="layout">
           <Sidebar />
           <main className="content">
             <Routes>
@@ -116,11 +134,13 @@ export function App() {
                 <Route path="cases/:name/edit" element={<CaseEditorPage />} />
                 <Route path="runs" element={<RunsPage />} />
                 <Route path="runs/:id" element={<RunDetailPage />} />
+                <Route path="heals" element={<HealsPage />} />
               </Route>
               <Route path="*" element={<p className="muted">Page not found.</p>} />
             </Routes>
           </main>
-        </div>
+          </div>
+        </RunToastsProvider>
       </ProjectsProvider>
     </BrowserRouter>
   );

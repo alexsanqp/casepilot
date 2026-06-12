@@ -3,7 +3,10 @@ import type {
   CaseDetail,
   CaseSummary,
   ExportResponse,
+  FsDirsResponse,
   Health,
+  HealActionResponse,
+  HealsResponse,
   ProjectsResponse,
   ProvidersResponse,
   RunDetail,
@@ -104,6 +107,31 @@ export const getTranscript = (projectId: string, id: string): Promise<string> =>
 
 export const videoUrl = (projectId: string, id: string): string =>
   `${projectBase(projectId)}/runs/${encodeURIComponent(id)}/video`;
+
+export const optimizedVideoUrl = (projectId: string, id: string): string =>
+  `${projectBase(projectId)}/runs/${encodeURIComponent(id)}/video/optimized`;
+
+export const screenshotUrl = (projectId: string, id: string, fileName: string): string =>
+  `${projectBase(projectId)}/runs/${encodeURIComponent(id)}/screenshots/${encodeURIComponent(fileName)}`;
+
+export const archiveUrl = (projectId: string, id: string): string =>
+  `${projectBase(projectId)}/runs/${encodeURIComponent(id)}/archive`;
+
+export const listHeals = (projectId: string, all = false): Promise<HealsResponse> =>
+  requestJson(`${projectBase(projectId)}/heals${all ? '?all=1' : ''}`);
+
+export const approveHeal = (projectId: string, healId: string): Promise<HealActionResponse> =>
+  requestJson(`${projectBase(projectId)}/heals/${encodeURIComponent(healId)}/approve`, {
+    method: 'POST',
+  });
+
+export const rejectHeal = (projectId: string, healId: string): Promise<HealActionResponse> =>
+  requestJson(`${projectBase(projectId)}/heals/${encodeURIComponent(healId)}/reject`, {
+    method: 'POST',
+  });
+
+export const listDirs = (path?: string): Promise<FsDirsResponse> =>
+  requestJson(path ? `/api/fs/dirs?path=${encodeURIComponent(path)}` : '/api/fs/dirs');
 
 export function errorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;

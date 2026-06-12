@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { addProject, errorMessage, removeProject } from '../api/client';
 import type { Project } from '../api/types';
+import { DirectoryPicker } from '../components/DirectoryPicker';
 import { formatTime } from '../lib/format';
 import { useProjects } from '../state/projects';
 
@@ -10,6 +11,7 @@ function AddProjectForm({ onAdded }: { onAdded: () => Promise<void> }) {
   const [path, setPath] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [browsing, setBrowsing] = useState(false);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -47,14 +49,20 @@ function AddProjectForm({ onAdded }: { onAdded: () => Promise<void> }) {
       </label>
       <label className="field">
         <span>Absolute path</span>
-        <input
-          className="input"
-          value={path}
-          onChange={(e) => setPath(e.target.value)}
-          placeholder="C:\projects\my-project"
-          disabled={busy}
-        />
+        <div className="path-row">
+          <input
+            className="input path-input"
+            value={path}
+            onChange={(e) => setPath(e.target.value)}
+            placeholder="C:\projects\my-project"
+            disabled={busy}
+          />
+          <button type="button" className="btn" disabled={busy} onClick={() => setBrowsing(true)}>
+            Browse
+          </button>
+        </div>
       </label>
+      {browsing && <DirectoryPicker onSelect={setPath} onClose={() => setBrowsing(false)} />}
       <div className="editor-actions">
         <button type="submit" className="btn btn-primary" disabled={busy}>
           {busy ? 'Adding…' : 'Add project'}

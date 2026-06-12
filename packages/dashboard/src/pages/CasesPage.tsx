@@ -13,6 +13,8 @@ import {
 import type { CaseSummary, ProvidersResponse, Verdict } from '../api/types';
 import { Badge, VerdictBadge } from '../components/Badge';
 import { Modal } from '../components/Modal';
+import { defaultRunOptions, RunOptions, runOptionsToRequest } from '../components/RunOptions';
+import { useRunToasts } from '../state/runToasts';
 
 interface ExportState {
   name: string;
@@ -136,7 +138,8 @@ function CaseRow({
   onExport: (specTs: string) => void;
 }) {
   const navigate = useNavigate();
-  const [video, setVideo] = useState(false);
+  const { trackRun } = useRunToasts();
+  const [options, setOptions] = useState(defaultRunOptions);
   const [provider, setProvider] = useState('');
   const [busy, setBusy] = useState(false);
   const [rowError, setRowError] = useState<string | null>(null);
@@ -159,18 +162,24 @@ function CaseRow({
 
   const runReplay = () =>
     act(async () => {
-      await startRun(projectId, { case: summary.name, mode: 'replay', video });
+      const { runId } = await startRun(projectId, {
+        case: summary.name,
+        mode: 'replay',
+        ...runOptionsToRequest(options, 'replay'),
+      });
+      trackRun({ projectId, runId, caseName: summary.name });
       navigate(runsPath);
     });
 
   const record = () =>
     act(async () => {
-      await startRun(projectId, {
+      const { runId } = await startRun(projectId, {
         case: summary.name,
         mode: 'record',
-        video,
+        ...runOptionsToRequest(options, 'record'),
         ...(selectedProvider ? { provider: selectedProvider } : {}),
       });
+      trackRun({ projectId, runId, caseName: summary.name });
       navigate(runsPath);
     });
 
@@ -206,10 +215,7 @@ function CaseRow({
         <VerdictBadge verdict={verdict} />
       </td>
       <td className="actions-cell">
-        <label className="toggle" title="Record a video of the run">
-          <input type="checkbox" checked={video} onChange={(e) => setVideo(e.target.checked)} />
-          video
-        </label>
+        <RunOptions value={options} onChange={setOptions} disabled={busy} />
         <button
           type="button"
           className="btn"
@@ -231,8 +237,18 @@ function CaseRow({
             </option>
           ))}
         </select>
-        <button type="button" className="btn" disabled={busy} onClick={() => void record()}>
-          Record
+        <button
+          type="button"
+          className="btn"
+          disabled={busy}
+          title={
+            summary.hasReplay
+              ? 'Record again, replacing the existing replay'
+              : 'Record a new replay'
+          }
+          onClick={() => void record()}
+        >
+          {summary.hasReplay ? 'Re-record' : 'Record'}
         </button>
         <button type="button" className="btn" disabled={busy} onClick={() => void doExport()}>
           Export
