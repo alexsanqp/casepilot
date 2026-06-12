@@ -36,6 +36,7 @@ function makeReplay(): ReplayFile {
 function makeResult(mode: 'record' | 'replay', verdict: 'passed' | 'failed' = 'passed'): RunResult {
   return {
     case: 'login',
+    caseName: 'login',
     mode,
     verdict,
     explanation: verdict === 'passed' ? 'all expectations verified' : 'something broke',

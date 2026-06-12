@@ -1,4 +1,5 @@
-import type { AssertStep, ReplayFile, ReplayStep, StepResult } from '@casepilot/core';
+import { collapseStepResults, stripAnsi, validateFinalOutcomes } from '@casepilot/core';
+import type { ReplayFile, ReplayStep, StepResult } from '@casepilot/core';
 
 export interface RecordingState {
   stepResults: StepResult[];
@@ -21,6 +22,8 @@ export interface FinalizedRecording {
   replay: ReplayFile;
   verdict: 'passed' | 'failed';
   explanation: string;
+  /** Final per-index outcomes: retries supersede earlier attempts at the same index. */
+  steps: StepResult[];
 }
 
 export function createRecordingState(): RecordingState {
@@ -36,7 +39,7 @@ export function recordStepOutcome(
     index: state.replaySteps.length,
     step,
     status: outcome.ok ? 'passed' : 'failed',
-    error: outcome.ok ? undefined : outcome.error ?? 'unknown error',
+    error: outcome.ok ? undefined : stripAnsi(outcome.error ?? 'unknown error'),
     durationMs: outcome.durationMs,
     offsetMs: outcome.offsetMs ?? 0,
   });
@@ -44,29 +47,12 @@ export function recordStepOutcome(
 }
 
 /**
- * Verdict guard: the model's "passed" only counts if asserts were executed and the
- * final attempt of each distinct assert passed. Mirrors core recorder semantics.
+ * Final per-index outcomes. Failed attempts do not advance the replay, so a
+ * retry of the same logical step reuses the index and supersedes the earlier
+ * attempt. Mirrors core recorder semantics.
  */
-export function validateAsserts(stepResults: StepResult[]): { ok: boolean; reason?: string } {
-  const finalBySignature = new Map<string, StepResult>();
-  for (const result of stepResults) {
-    if (result.step.kind !== 'assert') continue;
-    const { note: _note, ...signatureParts } = result.step;
-    finalBySignature.set(JSON.stringify(signatureParts), result);
-  }
-  if (finalBySignature.size === 0) {
-    return { ok: false, reason: 'no assertions were executed' };
-  }
-  const failed = [...finalBySignature.values()].filter((r) => r.status === 'failed');
-  if (failed.length > 0) {
-    return {
-      ok: false,
-      reason: failed
-        .map((r) => `assert ${(r.step as AssertStep).assert} failed: ${r.error ?? 'unknown error'}`)
-        .join('; '),
-    };
-  }
-  return { ok: true };
+export function finalStepResults(state: RecordingState): StepResult[] {
+  return collapseStepResults(state.stepResults);
 }
 
 export function assembleReplay(state: RecordingState, meta: RecordingMeta): ReplayFile {
@@ -86,6 +72,7 @@ export function finalizeRecording(
   reported: ReportedResult | undefined,
   meta: RecordingMeta,
 ): FinalizedRecording {
+  const steps = finalStepResults(state);
   let verdict: 'passed' | 'failed';
   let explanation: string;
   if (!reported) {
@@ -95,7 +82,7 @@ export function finalizeRecording(
     verdict = 'failed';
     explanation = reported.explanation;
   } else {
-    const validation = validateAsserts(state.stepResults);
+    const validation = validateFinalOutcomes(steps);
     if (validation.ok) {
       verdict = 'passed';
       explanation = reported.explanation;
@@ -104,5 +91,5 @@ export function finalizeRecording(
       explanation = `Provider reported passed, but validation disagrees: ${validation.reason}.`;
     }
   }
-  return { replay: assembleReplay(state, meta), verdict, explanation };
+  return { replay: assembleReplay(state, meta), verdict, explanation, steps };
 }

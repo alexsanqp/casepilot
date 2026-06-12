@@ -11,9 +11,9 @@ export {
 export {
   assembleReplay,
   createRecordingState,
+  finalStepResults,
   finalizeRecording,
   recordStepOutcome,
-  validateAsserts,
   type FinalizedRecording,
   type RecordingMeta,
   type RecordingState,

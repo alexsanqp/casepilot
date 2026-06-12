@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
-import { loadCaseFile, loadReplayFile, recordCase, replayCase, saveReplayFile } from '@casepilot/core';
+import { loadCaseFile, loadReplayFile, recordCase, replayCase, saveReplayFile, stripAnsi } from '@casepilot/core';
 import type {
   AgentProvider,
   CaseSpec,
@@ -251,9 +251,10 @@ export async function executeRun(req: RunRequest, deps: RunnerDeps = defaultRunn
     await pruneEmptyVideos(req.runDir);
     const failure: RunResult = {
       case: req.caseName,
+      caseName: req.caseName,
       mode: req.mode,
       verdict: 'failed',
-      explanation: err instanceof Error ? err.message : String(err),
+      explanation: stripAnsi(err instanceof Error ? err.message : String(err)),
       steps: [],
       artifacts: { screenshots: [] },
       startedAt,

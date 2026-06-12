@@ -3,7 +3,9 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { BrowserSession } from '../browser/session.js';
 import { saveReplayFile } from '../caseFile.js';
 import { captureStepScreenshotIfNeeded } from './stepScreenshots.js';
+import { collapseStepResults, validateFinalOutcomes } from './outcomes.js';
 import { optimizeVideo } from './videoOptimizer.js';
+import { stripAnsi } from '../text.js';
 import type {
   ActAction,
   ActStep,
@@ -108,7 +110,7 @@ function caseMessage(caseSpec: CaseSpec): string {
 }
 
 function errorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
+  return stripAnsi(err instanceof Error ? err.message : String(err));
 }
 
 function asString(value: unknown): string | undefined {
@@ -141,30 +143,6 @@ function parseAssertStep(args: Record<string, unknown>): AssertStep {
     text: asString(args.text),
     note: asString(args.note),
   };
-}
-
-/**
- * Verdict guard: the model's "passed" only counts if asserts were executed and the
- * final attempt of each distinct assert passed.
- */
-function validateAsserts(stepResults: StepResult[]): { ok: boolean; reason?: string } {
-  const finalBySignature = new Map<string, StepResult>();
-  for (const result of stepResults) {
-    if (result.step.kind !== 'assert') continue;
-    const { note: _note, ...signatureParts } = result.step;
-    finalBySignature.set(JSON.stringify(signatureParts), result);
-  }
-  if (finalBySignature.size === 0) {
-    return { ok: false, reason: 'no assertions were executed' };
-  }
-  const failed = [...finalBySignature.values()].filter((r) => r.status === 'failed');
-  if (failed.length > 0) {
-    return {
-      ok: false,
-      reason: failed.map((r) => `assert ${(r.step as AssertStep).assert} failed: ${r.error ?? 'unknown error'}`).join('; '),
-    };
-  }
-  return { ok: true };
 }
 
 export async function recordCase(
@@ -243,7 +221,8 @@ export async function recordCase(
           }
           const offsetMs = Date.now() - session.startedAt;
           const t0 = Date.now();
-          const { ok, detail } = await session.assert(step);
+          const { ok, detail: rawDetail } = await session.assert(step);
+          const detail = stripAnsi(rawDetail);
           await pushResult({
             index: replaySteps.length,
             step,
@@ -290,6 +269,9 @@ export async function recordCase(
     ({ videoPath } = await session.close());
   }
 
+  // Retries of a logical step reuse its index; only the final attempt per index counts.
+  const finalSteps = collapseStepResults(stepResults);
+
   let verdict: 'passed' | 'failed';
   let explanation: string;
   if (!reported) {
@@ -299,7 +281,7 @@ export async function recordCase(
     verdict = 'failed';
     explanation = reported.explanation;
   } else {
-    const validation = validateAsserts(stepResults);
+    const validation = validateFinalOutcomes(finalSteps);
     if (validation.ok) {
       verdict = 'passed';
       explanation = reported.explanation;
@@ -331,10 +313,11 @@ export async function recordCase(
 
   const result: RunResult = {
     case: caseSpec.name,
+    caseName: caseSpec.name,
     mode: 'record',
     verdict,
     explanation,
-    steps: stepResults,
+    steps: finalSteps,
     artifacts: { videoPath, optimizedVideoPath, replayPath, transcriptPath, screenshots },
     startedAt,
     finishedAt: new Date().toISOString(),

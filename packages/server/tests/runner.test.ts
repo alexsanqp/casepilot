@@ -129,6 +129,7 @@ function makeReplayFile(): ReplayFile {
 function passedResult(mode: 'record' | 'replay'): RunResult {
   return {
     case: 'login',
+    caseName: 'login',
     mode,
     verdict: 'passed',
     explanation: 'ok',

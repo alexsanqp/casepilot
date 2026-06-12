@@ -238,10 +238,11 @@ export async function createBrowserToolsServer(options: BrowserToolsOptions): Pr
         await saveReplayFile(replayPath, final.replay);
         const result: RunResult = {
           case: caseSpec.name,
+          caseName: caseSpec.name,
           mode: 'record',
           verdict: final.verdict,
           explanation: final.explanation,
-          steps: state.stepResults,
+          steps: final.steps,
           artifacts: { videoPath, optimizedVideoPath, replayPath, screenshots: [] },
           startedAt,
           finishedAt: new Date().toISOString(),

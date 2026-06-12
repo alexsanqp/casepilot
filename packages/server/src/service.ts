@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { readFile } from 'node:fs/promises';
+import { stripAnsi } from '@casepilot/core';
 import type { RunResult } from '@casepilot/core';
 import { executeRun, type RunnerDeps } from './runner.js';
 import type { HealPolicy } from './workspaceConfig.js';
@@ -67,7 +68,7 @@ export class RunService {
         this.registry.complete(runId, result);
       })
       .catch(async (err: unknown) => {
-        const message = err instanceof Error ? err.message : String(err);
+        const message = stripAnsi(err instanceof Error ? err.message : String(err));
         this.registry.fail(runId, message, await readRunResult(runDir));
       })
       .finally(() => {

@@ -50,6 +50,8 @@ export interface StepResult {
   offsetMs: number;
   /** Screenshot file name (not full path) under `<artifactsDir>/screenshots/`. */
   screenshot?: string;
+  /** Earlier attempts at this index superseded by this final attempt. */
+  retries?: number;
 }
 
 export interface Artifacts {
@@ -63,6 +65,8 @@ export interface Artifacts {
 
 export interface RunResult {
   case: string;
+  /** Mirrors `case`; the keyword-named field is awkward for consumers. */
+  caseName: string;
   mode: 'record' | 'replay';
   verdict: 'passed' | 'failed';
   explanation: string;

@@ -4,6 +4,7 @@ import { BrowserSession } from '../browser/session.js';
 import { saveReplayFile } from '../caseFile.js';
 import { captureStepScreenshotIfNeeded } from './stepScreenshots.js';
 import { optimizeVideo } from './videoOptimizer.js';
+import { stripAnsi } from '../text.js';
 import type {
   CaseSpec,
   HealerFn,
@@ -16,7 +17,7 @@ import type {
 } from '../types.js';
 
 function errorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
+  return stripAnsi(err instanceof Error ? err.message : String(err));
 }
 
 function describeStep(step: ReplayStep): string {
@@ -153,6 +154,7 @@ export async function replayCase(
 
   return {
     case: replay.case,
+    caseName: replay.case,
     mode: 'replay',
     verdict,
     explanation,
