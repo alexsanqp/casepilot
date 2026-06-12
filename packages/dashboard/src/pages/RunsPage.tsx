@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { listRuns } from '../api/client';
 import { ModeBadge, VerdictBadge } from '../components/Badge';
 import { usePolling } from '../hooks/usePolling';
@@ -55,7 +55,15 @@ export function RunsPage() {
                 <td>
                   <code>{shortId(r.runId)}</code>
                 </td>
-                <td>{r.case}</td>
+                <td>
+                  <Link
+                    className="link"
+                    to={`/p/${encodeURIComponent(projectId)}/cases/${encodeURIComponent(r.case)}`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {r.case}
+                  </Link>
+                </td>
                 <td>
                   <ModeBadge mode={r.mode} />
                 </td>

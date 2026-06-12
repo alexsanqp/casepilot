@@ -1,8 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { archiveUrl, errorMessage, getCase, getRun, getTranscript, screenshotUrl } from '../api/client';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import {
+  archiveUrl,
+  errorMessage,
+  getCase,
+  getRun,
+  getTranscript,
+  listHeals,
+  screenshotUrl,
+  startRun,
+} from '../api/client';
 import type { ReplayFile, RunResult, RunStepResult } from '../api/types';
 import { ModeBadge } from '../components/Badge';
+import { useRunToasts } from '../state/runToasts';
 import { StepTable } from '../components/StepTable';
 import { SyncedVideo, type SyncedVideoHandle } from '../components/SyncedVideo';
 import { usePolling } from '../hooks/usePolling';
@@ -23,15 +33,27 @@ export function RunDetailPage() {
 
   if (!runId) return <p className="message message-error">Missing run id.</p>;
 
+  const caseName = run?.result?.case;
+
   return (
     <div>
       <div className="page-header">
         <h1>
           Run <code>{runId}</code>
         </h1>
-        <Link className="link" to={`/p/${encodeURIComponent(projectId)}/runs`}>
-          ← All runs
-        </Link>
+        <span className="header-links">
+          {caseName && (
+            <Link
+              className="link"
+              to={`/p/${encodeURIComponent(projectId)}/cases/${encodeURIComponent(caseName)}`}
+            >
+              ← case {caseName}
+            </Link>
+          )}
+          <Link className="link" to={`/p/${encodeURIComponent(projectId)}/runs`}>
+            All runs
+          </Link>
+        </span>
       </div>
       {error && <p className="message message-error">{error}</p>}
       {loading && !run && <p className="muted">Loading run…</p>}
@@ -81,6 +103,8 @@ function RunResultView({
         </p>
       </div>
 
+      {result.verdict === 'failed' && <FixPanel projectId={projectId} caseName={result.case} />}
+
       {hasVideo && (
         <section>
           <h2>Video</h2>
@@ -109,6 +133,74 @@ function RunResultView({
       <TranscriptSection projectId={projectId} runId={runId} />
       <ReplaySection projectId={projectId} caseName={result.case} />
     </div>
+  );
+}
+
+function FixPanel({ projectId, caseName }: { projectId: string; caseName: string }) {
+  const navigate = useNavigate();
+  const { trackRun } = useRunToasts();
+  const [pendingHeals, setPendingHeals] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    listHeals(projectId)
+      .then((res) => {
+        if (!cancelled) setPendingHeals(res.heals.filter((h) => h.caseName === caseName).length);
+      })
+      .catch(() => {
+        if (!cancelled) setPendingHeals(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, caseName]);
+
+  const basePath = `/p/${encodeURIComponent(projectId)}`;
+  const casePath = `${basePath}/cases/${encodeURIComponent(caseName)}`;
+
+  const reRecord = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const { runId } = await startRun(projectId, { case: caseName, mode: 'record' });
+      trackRun({ projectId, runId, caseName });
+      navigate(`${basePath}/runs`);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="fix-panel">
+      <h2>Fix this case</h2>
+      <div className="fix-actions">
+        <div className="fix-action">
+          <Link className="btn" to={`${casePath}?edit=1`}>
+            Edit case
+          </Link>
+          <span className="muted">Adjust the steps or expectations in the definition.</span>
+        </div>
+        <div className="fix-action">
+          <button type="button" className="btn" disabled={busy} onClick={() => void reRecord()}>
+            {busy ? 'Starting…' : 'Re-record'}
+          </button>
+          <span className="muted">Record a fresh replay with the default provider.</span>
+        </div>
+        {pendingHeals > 0 && (
+          <div className="fix-action">
+            <Link className="btn" to={`${basePath}/heals`}>
+              Review {pendingHeals} pending heal{pendingHeals === 1 ? '' : 's'}
+            </Link>
+            <span className="muted">Approve selector fixes suggested during replay.</span>
+          </div>
+        )}
+      </div>
+      {error && <p className="message message-error">{error}</p>}
+    </section>
   );
 }
 

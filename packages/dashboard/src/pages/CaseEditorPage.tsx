@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { errorMessage, getCase, saveCase } from '../api/client';
+import { CaseYamlEditor } from '../components/CaseYamlEditor';
 
 const TEMPLATE = `name: my-case
 url: https://example.com
@@ -14,98 +14,34 @@ expect:
 `;
 
 export function CaseEditorPage() {
-  const { projectId = '', name: routeName } = useParams<{ projectId: string; name: string }>();
+  const { projectId = '' } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const isNew = routeName === undefined;
+  const [name, setName] = useState('');
   const casesPath = `/p/${encodeURIComponent(projectId)}/cases`;
-
-  const [name, setName] = useState(routeName ?? '');
-  const [yaml, setYaml] = useState(isNew ? TEMPLATE : '');
-  const [loading, setLoading] = useState(!isNew);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (routeName === undefined) return;
-    let cancelled = false;
-    getCase(projectId, routeName)
-      .then((detail) => {
-        if (cancelled) return;
-        setYaml(detail.specYaml);
-        setLoading(false);
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        setError(errorMessage(err));
-        setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [projectId, routeName]);
-
-  const save = async () => {
-    const trimmed = name.trim();
-    if (!trimmed) {
-      setError('Case name is required.');
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    try {
-      await saveCase(projectId, trimmed, yaml);
-      navigate(casesPath);
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setSaving(false);
-    }
-  };
 
   return (
     <div>
       <div className="page-header">
-        <h1>{isNew ? 'New case' : `Edit case: ${routeName}`}</h1>
+        <h1>New case</h1>
       </div>
-      {loading && <p className="muted">Loading case…</p>}
-      {!loading && (
-        <div className="editor">
-          <label className="field">
-            <span>Name</span>
-            <input
-              className="input"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              disabled={!isNew}
-              placeholder="my-case"
-            />
-          </label>
-          <label className="field">
-            <span>Spec YAML</span>
-            <textarea
-              className="textarea"
-              value={yaml}
-              onChange={(e) => setYaml(e.target.value)}
-              rows={20}
-              spellCheck={false}
-            />
-          </label>
-          {error && <p className="message message-error">{error}</p>}
-          <div className="editor-actions">
-            <button
-              type="button"
-              className="btn btn-primary"
-              disabled={saving}
-              onClick={() => void save()}
-            >
-              {saving ? 'Saving…' : 'Save'}
-            </button>
-            <button type="button" className="btn" onClick={() => navigate(casesPath)}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
+      <div className="editor">
+        <label className="field">
+          <span>Name</span>
+          <input
+            className="input"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="my-case"
+          />
+        </label>
+        <CaseYamlEditor
+          projectId={projectId}
+          caseName={name}
+          initialYaml={TEMPLATE}
+          onSaved={(saved) => navigate(`${casesPath}/${encodeURIComponent(saved)}`)}
+          onCancel={() => navigate(casesPath)}
+        />
+      </div>
     </div>
   );
 }

@@ -96,8 +96,10 @@ export const getProviders = (projectId: string): Promise<ProvidersResponse> =>
 export const startRun = (projectId: string, req: StartRunRequest): Promise<StartRunResponse> =>
   requestJson(`${projectBase(projectId)}/runs`, { method: 'POST', ...json(req) });
 
-export const listRuns = (projectId: string): Promise<RunSummary[]> =>
-  requestJson(`${projectBase(projectId)}/runs`);
+export const listRuns = (projectId: string, caseName?: string): Promise<RunSummary[]> =>
+  requestJson(
+    `${projectBase(projectId)}/runs${caseName ? `?case=${encodeURIComponent(caseName)}` : ''}`,
+  );
 
 export const getRun = (projectId: string, id: string): Promise<RunDetail> =>
   requestJson(`${projectBase(projectId)}/runs/${encodeURIComponent(id)}`);

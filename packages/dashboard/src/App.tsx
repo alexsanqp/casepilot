@@ -13,6 +13,7 @@ import {
 } from 'react-router-dom';
 import { getHealth, listHeals } from './api/client';
 import { usePolling } from './hooks/usePolling';
+import { CaseDetailPage } from './pages/CaseDetailPage';
 import { CaseEditorPage } from './pages/CaseEditorPage';
 import { CasesPage } from './pages/CasesPage';
 import { HealsPage } from './pages/HealsPage';
@@ -100,6 +101,16 @@ function Sidebar() {
   );
 }
 
+function CaseEditRedirect() {
+  const { projectId = '', name = '' } = useParams<{ projectId: string; name: string }>();
+  return (
+    <Navigate
+      to={`/p/${encodeURIComponent(projectId)}/cases/${encodeURIComponent(name)}?edit=1`}
+      replace
+    />
+  );
+}
+
 function ProjectScopeLayout() {
   const { projectId = '' } = useParams<{ projectId: string }>();
   const { projects } = useProjects();
@@ -131,7 +142,8 @@ export function App() {
                 <Route index element={<Navigate to="cases" replace />} />
                 <Route path="cases" element={<CasesPage />} />
                 <Route path="cases/new" element={<CaseEditorPage />} />
-                <Route path="cases/:name/edit" element={<CaseEditorPage />} />
+                <Route path="cases/:name" element={<CaseDetailPage />} />
+                <Route path="cases/:name/edit" element={<CaseEditRedirect />} />
                 <Route path="runs" element={<RunsPage />} />
                 <Route path="runs/:id" element={<RunDetailPage />} />
                 <Route path="heals" element={<HealsPage />} />

@@ -19,11 +19,19 @@ export interface Health {
   version: string;
 }
 
+export interface CaseLastRun {
+  id: string;
+  status: RunStatus;
+  verdict?: Verdict;
+  finishedAt?: string;
+}
+
 export interface CaseSummary {
   name: string;
   url: string;
   hasReplay: boolean;
   file: string;
+  lastRun?: CaseLastRun;
 }
 
 export interface CaseSpec {
