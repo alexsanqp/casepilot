@@ -1,4 +1,4 @@
-# Dashboard self-test suite
+﻿# Dashboard self-test suite
 
 Dogfooding suite: casepilot test cases that exercise casepilot's own admin dashboard. The system under test is the web UI served by Vite at `http://localhost:7701`, backed by the REST server at `http://localhost:7700`.
 
@@ -16,7 +16,7 @@ Before recording or replaying these cases:
 
 ## Recording and replaying
 
-This suite lives in its own workspace at `cases/dashboard`. Treat the repo root as the workspace and pass it explicitly, or run `casepilot init` wherever you want these cases to live and copy them into that workspace's `cases/` directory.
+This suite lives in its own workspace at `cases`. Treat the repo root as the workspace and pass it explicitly, or run `casepilot init` wherever you want these cases to live and copy them into that workspace's `cases/` directory.
 
 Assuming a workspace whose `cases/` directory contains these files:
 

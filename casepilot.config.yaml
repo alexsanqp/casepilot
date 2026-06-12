@@ -1,0 +1,6 @@
+defaultProvider: claude-code
+providers:
+  - id: claude-code
+    type: claude-code
+  - id: codex
+    type: codex
