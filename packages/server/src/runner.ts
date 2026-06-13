@@ -2,6 +2,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 import { createWriteStream, type WriteStream } from 'node:fs';
 import { mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
+import { z } from 'zod';
 import {
   loadCaseFile,
   loadReplayFile,
@@ -141,6 +142,46 @@ function closeStream(stream: WriteStream): Promise<void> {
   return new Promise((resolve) => stream.end(resolve));
 }
 
+// Validates the parts of result.json the runner depends on downstream. The
+// bridge is a separate process we do not control, so we treat its output as
+// untrusted: a malformed or partial file must surface as an actionable run
+// failure, not a raw SyntaxError/TypeError. Unknown extra fields pass through.
+const agentResultSchema = z
+  .object({
+    verdict: z.enum(['passed', 'failed']),
+    artifacts: z
+      .object({ screenshots: z.array(z.string()) })
+      .passthrough(),
+  })
+  .passthrough();
+
+/**
+ * Parse and validate a bridge-written result.json string into a RunResult.
+ * Throws an Error with a clear, actionable message (prefixed
+ * "agent bridge wrote an invalid result.json") on malformed JSON or a payload
+ * missing the fields the runner reads, instead of leaking a raw
+ * SyntaxError/TypeError.
+ */
+export function parseAgentResult(raw: string): RunResult {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    throw new Error(`agent bridge wrote an invalid result.json: ${detail}`);
+  }
+  const validated = agentResultSchema.safeParse(parsed);
+  if (!validated.success) {
+    const detail = validated.error.issues
+      .map((issue) => `${issue.path.join('.') || '(root)'}: ${issue.message}`)
+      .join('; ');
+    throw new Error(`agent bridge wrote an invalid result.json: ${detail}`);
+  }
+  // The schema validates only the subset the runner reads; the remaining
+  // RunResult fields pass through untouched, so widen via unknown.
+  return validated.data as unknown as RunResult;
+}
+
 async function recordViaAgent(
   req: RunRequest,
   spec: CaseSpec,
@@ -200,7 +241,9 @@ async function recordViaAgent(
       `agent provider "${provider.id}" finished but the browser-tools bridge wrote no result.json in ${req.runDir}; the agent likely never called report_result`,
     );
   }
-  const result = JSON.parse(raw) as RunResult;
+  const result = parseAgentResult(raw);
+  // Defensive: the schema guarantees artifacts, but keep the mutation safe.
+  result.artifacts ??= { screenshots: [] };
   result.artifacts.transcriptPath = transcriptPath;
 
   if (result.verdict === 'passed') {
