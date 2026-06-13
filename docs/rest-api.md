@@ -171,6 +171,55 @@ Applies the pending heal into `cases/<case>.replay.json` (bumps `meta.healCount`
 
 Marks the pending heal rejected without touching the replay. Returns `{"applied": false}`; same `404`/`409` failures as approve.
 
+## Suite routes
+
+A suite replays a set of recorded cases into one aggregate verdict and writes CI-ingestible reports. As with the rest of the workspace API, these routes exist both project-scoped (`/api/projects/:projectId/suites/runs...`) and, in single-workspace mode, as unscoped `/api/suites/runs...` aliases.
+
+### POST .../suites/runs
+
+Starts a suite run asynchronously.
+
+Request:
+
+```json
+{ "caseNames": ["login", "checkout"], "concurrency": 4, "heal": false, "headed": false, "video": true,
+  "baseUrl": "https://staging.example.com" }
+```
+
+`caseNames` is optional — omit it to run every recorded case. `concurrency` (default 1) is how many cases replay in parallel. Any other keys are passed through as per-case replay options (e.g. `heal`, `healPolicy`, `headed`, `video`, `baseUrl`), mirroring the `run` flags. Cases with no recorded replay (and unknown named cases) are skipped, not failed. Responds `200 {"suiteId": "suite-...", "status": "running"}`.
+
+### GET .../suites/runs
+
+Suite summaries, newest first:
+
+```json
+[ { "suiteId": "suite-20260613-142233-a1b2c3", "status": "done", "startedAt": "...", "passed": 3, "failed": 1, "skipped": 1 } ]
+```
+
+`status` is `running`, `done`, or `error`. `passed`/`failed`/`skipped` are present once the suite has a result. Finished suites from previous server sessions are rehydrated from `suites/` (their `suite.json`) on startup with status `done`.
+
+### GET .../suites/runs/:suiteId
+
+Poll this until `status` leaves `running`:
+
+```json
+{ "status": "done",
+  "result": { "startedAt": "...", "finishedAt": "...", "total": 5, "ran": 4, "passed": 3, "failed": 1, "skipped": 1,
+    "cases": [ { "caseName": "login", "status": "passed", "verdict": "passed", "runId": "...", "durationMs": 1200 },
+               { "caseName": "draft", "status": "skipped", "durationMs": 0, "reason": "not recorded" } ] },
+  "error": null }
+```
+
+The `result` (`SuiteResult`) carries the aggregate counts plus a per-case `cases` array (`SuiteCaseResult`): `caseName`; `status` (`passed` / `failed` / `skipped`); `verdict` and `runId` only when the case actually ran (a `runId` links to the matching entry under `.../runs/:id`); `durationMs`; and `reason` for the failure message or the skip cause. `status: "error"` means the suite itself blew up and `error` holds the message. `404 {"error":"suite \"<suiteId>\" not found"}` for an unknown suite.
+
+### GET .../suites/runs/:suiteId/junit
+
+Returns the suite's JUnit XML report (`application/xml`), one `<testcase>` per case with `<failure>`/`<skipped>` for non-passing cases. `404` for an unknown or invalid `suiteId`, or when no report has been written yet.
+
+### GET .../suites/runs/:suiteId/json
+
+Returns the suite's JSON report (`application/json`) — the same `SuiteResult` shape as the poll route's `result`. Same `404` behavior as `/junit`.
+
 ## Static artifacts
 
 In single-workspace mode only, the workspace `runs/` directory is also served at `/artifacts/` (e.g. `/artifacts/<runId>/result.json`).
