@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { createReadStream } from 'node:fs';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import YAML from 'yaml';
@@ -12,6 +13,7 @@ import {
   fileExists,
   isSafeName,
   listCases,
+  suiteDirPath,
 } from './workspace.js';
 import { isAbsoluteHttpUrl } from './workspaceConfig.js';
 import type { ProviderRegistryLike } from './providersLoader.js';
@@ -247,6 +249,48 @@ function registerProjectScopedRoutes(app: FastifyInstance, deps: ApiDeps, base: 
     }
     return reply.header('content-type', 'text/plain; charset=utf-8').send(await readFile(transcriptPath, 'utf8'));
   });
+
+  app.post<{ Body: { caseNames?: string[]; concurrency?: number } & Record<string, unknown> }>(
+    `${base}/suites/runs`,
+    async (req, reply) => {
+      const ctx = await resolve(req, reply);
+      if (!ctx) return reply;
+      const { caseNames, concurrency, ...replayOptions } = req.body ?? {};
+      const { suiteId } = ctx.suiteService.start({ caseNames, concurrency, replayOptions });
+      return { suiteId, status: 'running' };
+    },
+  );
+
+  app.get(`${base}/suites/runs`, async (req, reply) => {
+    const ctx = await resolve(req, reply);
+    if (!ctx) return reply;
+    return ctx.suiteRegistry.list();
+  });
+
+  app.get<{ Params: { suiteId: string } }>(`${base}/suites/runs/:suiteId`, async (req, reply) => {
+    const ctx = await resolve(req, reply);
+    if (!ctx) return reply;
+    const entry = ctx.suiteRegistry.get(req.params.suiteId);
+    if (!entry) return reply.status(404).send({ error: `suite "${req.params.suiteId}" not found` });
+    return { status: entry.status, result: entry.result, error: entry.error };
+  });
+
+  for (const kind of ['junit', 'json'] as const) {
+    app.get<{ Params: { suiteId: string } }>(`${base}/suites/runs/:suiteId/${kind}`, async (req, reply) => {
+      const ctx = await resolve(req, reply);
+      if (!ctx) return reply;
+      const file = path.join(
+        suiteDirPath(ctx.workspace, req.params.suiteId),
+        kind === 'junit' ? 'junit.xml' : 'suite.json',
+      );
+      try {
+        const body = await readFile(file, 'utf8');
+        return reply.header('content-type', kind === 'junit' ? 'application/xml' : 'application/json').send(body);
+      } catch {
+        return reply.status(404).send({ error: 'report not found' });
+      }
+    });
+  }
 
   registerHealRoutes(app, base, resolve);
   registerArtifactRoutes(app, base, resolve);
