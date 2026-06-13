@@ -348,10 +348,16 @@ async function findAuthProducer(workspace: string, profile: string): Promise<str
 async function ensureAuthProfile(workspace: string, profile: string, deps: RunnerDeps): Promise<void> {
   const producer = await findAuthProducer(workspace, profile);
   if (producer !== undefined) {
-    await executeRun(
-      { workspace, caseName: producer, mode: 'replay', runDir: runDirPath(workspace, newRunId()) },
-      deps,
-    );
+    try {
+      await executeRun(
+        { workspace, caseName: producer, mode: 'replay', runDir: runDirPath(workspace, newRunId()) },
+        deps,
+      );
+    } catch (err) {
+      throw new Error(
+        `auto-refresh of auth profile "${profile}" failed while running producer case "${producer}": ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   }
   if (!(await fileExists(authProfilePath(workspace, profile)))) {
     throw missingProfileError(profile);
@@ -464,6 +470,17 @@ export async function executeRun(req: RunRequest, deps: RunnerDeps = defaultRunn
           await saveReplayFile(caseReplayPath(req.workspace, req.caseName), recorded.replay);
         }
       } else {
+        // The agent record path does NOT forward storageState to the MCP bridge,
+        // so useAuth/saveAuth would silently no-op. Fail fast instead of recording
+        // a misleadingly "authenticated" case. Detect auth from the resolved
+        // values (set only when a real profile / saveAuth was requested).
+        if (auth.storageStatePath || auth.saveStorageStatePath) {
+          const profile = spec.useAuth ?? spec.saveAuth ?? '';
+          throw new Error(
+            `auth (useAuth/saveAuth) is not supported on agent-CLI records yet; ` +
+              `record cases that use "${profile}" auth with a chat provider, or remove useAuth/saveAuth`,
+          );
+        }
         result = await recordViaAgent(req, spec, provider, deps, options);
       }
     }

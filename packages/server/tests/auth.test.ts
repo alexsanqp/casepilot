@@ -2,7 +2,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { describe, expect, it, vi } from 'vitest';
-import type { ReplayFile, RunOptions, RunResult } from '@casepilot/core';
+import type { AgentProvider, ReplayFile, RunOptions, RunResult } from '@casepilot/core';
 import {
   authDir,
   authProfilePath,
@@ -28,6 +28,28 @@ const registry: ProviderRegistryLike = {
   list: () => [{ id: 'fake-chat', kind: 'chat', type: 'fake' }],
   default: () => chatProvider,
 };
+
+/**
+ * A minimal agent provider whose runTask is a no-op (no real CLI). Used to
+ * exercise the agent-record dispatch branch in executeRun without spawning a
+ * process; runTask is a spy so tests can assert it was never reached.
+ */
+function fakeAgentProvider(): AgentProvider & { runTask: ReturnType<typeof vi.fn> } {
+  const runTask = vi.fn(async () => ({ transcript: '' }));
+  return { kind: 'agent', id: 'fake-agent', runTask };
+}
+
+/** A registry whose default provider is the given agent provider. */
+function agentRegistry(agent: AgentProvider): ProviderRegistryLike {
+  return {
+    get: (id) => {
+      if (id !== agent.id) throw new Error(`unknown provider "${id}"`);
+      return agent;
+    },
+    list: () => [{ id: agent.id, kind: 'agent', type: 'fake' }],
+    default: () => agent,
+  };
+}
 
 function passedResult(mode: 'record' | 'replay'): RunResult {
   return {
@@ -73,10 +95,13 @@ async function workspace(config?: string): Promise<string> {
   return ws;
 }
 
-function depsWith(over: Partial<RunnerDeps['engine']> = {}): RunnerDeps {
+function depsWith(
+  over: Partial<RunnerDeps['engine']> = {},
+  registryOverride?: ProviderRegistryLike,
+): RunnerDeps {
   return {
     engine: { recordCase: vi.fn(), replayCase: vi.fn(), ...over },
-    loadRegistry: async () => registry,
+    loadRegistry: async () => registryOverride ?? registry,
     resolveMcpBin: () => 'C:/fake/mcp/bin.js',
   };
 }
@@ -85,6 +110,10 @@ describe('authProfilePath', () => {
   it('rejects a path-traversal profile name', () => {
     expect(() => authProfilePath('C:/ws', '../x')).toThrow(/invalid auth profile name/);
     expect(() => authProfilePath('C:/ws', 'a/b')).toThrow(/invalid auth profile name/);
+  });
+
+  it('rejects the reserved profile name "none"', () => {
+    expect(() => authProfilePath('C:/ws', 'none')).toThrow(/auth profile name "none" is reserved/);
   });
 
   it('builds a path under auth/ for a safe name', () => {
@@ -137,6 +166,13 @@ describe('resolveAuthOptions — resolution table', () => {
     await resolveAuthOptions(ws, { saveAuth: 'main' }, depsWith());
     const gi = await readFile(path.join(authDir(ws), '.gitignore'), 'utf8');
     expect(gi).toBe('*\n');
+  });
+
+  it('rejects a saveAuth of the reserved name "none"', async () => {
+    const ws = await workspace('providers: []\n');
+    await expect(resolveAuthOptions(ws, { saveAuth: 'none' }, depsWith())).rejects.toThrow(
+      /auth profile name "none" is reserved/,
+    );
   });
 });
 
@@ -245,5 +281,88 @@ describe('executeRun auth wiring', () => {
       depsWith({ recordCase }),
     );
     expect(recordCase).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('executeRun — auth on agent-CLI records is rejected', () => {
+  it('throws an actionable error for an agent-provider record that requests saveAuth', async () => {
+    const ws = await workspace('providers: []\n');
+    await writeFile(
+      path.join(ws, 'cases', 'do-login.case.yaml'),
+      `name: do-login\nurl: https://example.test/login\nsaveAuth: main\nsteps:\n  - Log in\nexpect:\n  - Dashboard is visible\n`,
+      'utf8',
+    );
+    const agent = fakeAgentProvider();
+    await expect(
+      executeRun(
+        { workspace: ws, caseName: 'do-login', mode: 'record', runDir: path.join(ws, 'runs', 'r1') },
+        depsWith({}, agentRegistry(agent)),
+      ),
+    ).rejects.toThrow(/auth \(useAuth\/saveAuth\) is not supported on agent-CLI records yet.*"main"/);
+    // The agent CLI must never be reached when auth is requested.
+    expect(agent.runTask).not.toHaveBeenCalled();
+  });
+
+  it('throws an actionable error for an agent-provider record that requests useAuth', async () => {
+    const ws = await workspace('providers: []\n');
+    // Profile present so resolveAuthOptions does not throw missing-profile first.
+    await mkdir(authDir(ws), { recursive: true });
+    await writeFile(authProfilePath(ws, 'main'), '{"cookies":[],"origins":[]}', 'utf8');
+    await writeFile(
+      path.join(ws, 'cases', 'edit.case.yaml'),
+      `name: edit\nurl: https://example.test/\nuseAuth: main\nsteps:\n  - Click something\nexpect:\n  - It worked\n`,
+      'utf8',
+    );
+    const agent = fakeAgentProvider();
+    await expect(
+      executeRun(
+        { workspace: ws, caseName: 'edit', mode: 'record', runDir: path.join(ws, 'runs', 'r1') },
+        depsWith({}, agentRegistry(agent)),
+      ),
+    ).rejects.toThrow(/auth \(useAuth\/saveAuth\) is not supported on agent-CLI records yet.*"main"/);
+    expect(agent.runTask).not.toHaveBeenCalled();
+  });
+
+  it('does NOT throw for an agent-provider record with no auth (still records)', async () => {
+    const ws = await workspace('providers: []\n');
+    await writeFile(path.join(ws, 'cases', 'plain.case.yaml'), CASE_YAML('plain'), 'utf8');
+    const agent = fakeAgentProvider();
+    // The agent records normally: runTask returns, then the bridge result.json
+    // is read. Pre-seed a passing result.json so recordViaAgent succeeds.
+    agent.runTask.mockImplementation(async () => {
+      await writeFile(
+        path.join(ws, 'runs', 'r1', 'result.json'),
+        JSON.stringify({ verdict: 'passed', artifacts: { screenshots: [] } }),
+        'utf8',
+      );
+      return { transcript: 'done' };
+    });
+
+    const result = await executeRun(
+      { workspace: ws, caseName: 'plain', mode: 'record', runDir: path.join(ws, 'runs', 'r1') },
+      depsWith({}, agentRegistry(agent)),
+    );
+    expect(agent.runTask).toHaveBeenCalledTimes(1);
+    expect(result.verdict).toBe('passed');
+  });
+});
+
+describe('ensureAuthProfile — auto-refresh producer failure', () => {
+  it('wraps a producer run failure with the profile and producer case context', async () => {
+    const ws = await workspace('providers: []\ndefaultAuth: main\nauthRefresh: auto\n');
+    await writeFile(path.join(ws, 'cases', 'do-login.case.yaml'), CASE_YAML('do-login'), 'utf8');
+    await writeFile(
+      path.join(ws, 'cases', 'do-login.replay.json'),
+      JSON.stringify(replayFor('do-login', { saveAuth: 'main' }), null, 2),
+      'utf8',
+    );
+    // The producer replay engine blows up (e.g. the login UI changed).
+    const replayCase = vi.fn(async () => {
+      throw new Error('login button not found');
+    });
+
+    await expect(resolveAuthOptions(ws, { useAuth: 'main' }, depsWith({ replayCase }))).rejects.toThrow(
+      /auto-refresh of auth profile "main" failed while running producer case "do-login": login button not found/,
+    );
   });
 });
