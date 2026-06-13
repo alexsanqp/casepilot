@@ -242,10 +242,11 @@ export function createActions(io: CliIo = consoleIo): CliActions {
       io.out(formatTranscript(raw));
     },
 
-    async serve({ workspace, port, registry }) {
+    async serve({ workspace, host, port, registry }) {
       const { startServer } = await import('@casepilot/server');
       const { address } = await startServer({
         workspace: workspace ? path.resolve(workspace) : undefined,
+        host,
         port,
         registryPath: registry,
       });

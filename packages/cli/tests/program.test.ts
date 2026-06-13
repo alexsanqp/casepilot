@@ -275,19 +275,36 @@ describe('casepilot CLI parsing', () => {
   it('parses serve with a numeric port', async () => {
     const actions = stubActions();
     await parse(actions, ['serve', '--port', '8080']);
-    expect(actions.serve).toHaveBeenCalledWith({ workspace: undefined, port: 8080, registry: undefined });
+    expect(actions.serve).toHaveBeenCalledWith({ workspace: undefined, host: '127.0.0.1', port: 8080, registry: undefined });
   });
 
   it('defaults serve to port 7700 and registry mode without --workspace', async () => {
     const actions = stubActions();
     await parse(actions, ['serve']);
-    expect(actions.serve).toHaveBeenCalledWith({ workspace: undefined, port: 7700, registry: undefined });
+    expect(actions.serve).toHaveBeenCalledWith({ workspace: undefined, host: '127.0.0.1', port: 7700, registry: undefined });
+  });
+
+  it('defaults serve --host to 127.0.0.1 when not passed', async () => {
+    const actions = stubActions();
+    await parse(actions, ['serve']);
+    expect(actions.serve).toHaveBeenCalledWith(expect.objectContaining({ host: '127.0.0.1' }));
+  });
+
+  it('parses serve --host to bind a non-loopback address (e.g. containers)', async () => {
+    const actions = stubActions();
+    await parse(actions, ['serve', '--host', '0.0.0.0', '--port', '7700']);
+    expect(actions.serve).toHaveBeenCalledWith({
+      workspace: undefined,
+      host: '0.0.0.0',
+      port: 7700,
+      registry: undefined,
+    });
   });
 
   it('parses serve with an explicit --workspace (single-project mode)', async () => {
     const actions = stubActions();
     await parse(actions, ['--workspace', 'C:\\tmp\\ws', 'serve']);
-    expect(actions.serve).toHaveBeenCalledWith({ workspace: 'C:\\tmp\\ws', port: 7700, registry: undefined });
+    expect(actions.serve).toHaveBeenCalledWith({ workspace: 'C:\\tmp\\ws', host: '127.0.0.1', port: 7700, registry: undefined });
   });
 
   it('parses serve with --registry', async () => {
@@ -295,6 +312,7 @@ describe('casepilot CLI parsing', () => {
     await parse(actions, ['serve', '--registry', 'C:\\tmp\\projects.json']);
     expect(actions.serve).toHaveBeenCalledWith({
       workspace: undefined,
+      host: '127.0.0.1',
       port: 7700,
       registry: 'C:\\tmp\\projects.json',
     });
