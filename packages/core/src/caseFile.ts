@@ -1,4 +1,5 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, rename, unlink, writeFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import YAML from 'yaml';
 import { z } from 'zod';
 import type { CaseSpec, CaseStep, NormalizedCaseStep, ReplayFile } from './types.js';
@@ -150,5 +151,15 @@ export async function loadReplayFile(filePath: string): Promise<ReplayFile> {
 
 export async function saveReplayFile(filePath: string, replay: ReplayFile): Promise<void> {
   const validated = parseReplayFile(replay);
-  await writeFile(filePath, JSON.stringify(validated, null, 2), 'utf8');
+  // Write-then-rename so a concurrent loadReplayFile never observes a truncated
+  // file mid-write (rename is atomic on the same filesystem). A per-write unique
+  // temp name keeps two concurrent saves from clobbering each other's temp file.
+  const tmpPath = `${filePath}.${randomUUID()}.tmp`;
+  try {
+    await writeFile(tmpPath, JSON.stringify(validated, null, 2), 'utf8');
+    await rename(tmpPath, filePath);
+  } catch (err) {
+    await unlink(tmpPath).catch(() => {});
+    throw err;
+  }
 }
