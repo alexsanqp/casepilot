@@ -3,6 +3,7 @@ import { startServer } from './server.js';
 
 interface ParsedArgs {
   workspace?: string;
+  host: string;
   port: number;
   registryPath?: string;
 }
@@ -10,6 +11,7 @@ interface ParsedArgs {
 function parseArgs(argv: string[]): ParsedArgs {
   let workspace: string | undefined;
   let registryPath: string | undefined;
+  let host = '127.0.0.1';
   let port = 7700;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]!;
@@ -21,6 +23,10 @@ function parseArgs(argv: string[]): ParsedArgs {
       const value = argv[++i];
       if (!value) throw new Error('--registry requires a value');
       registryPath = value;
+    } else if (arg === '--host') {
+      const value = argv[++i];
+      if (!value) throw new Error('--host requires a value');
+      host = value;
     } else if (arg === '--port') {
       const value = argv[++i];
       const parsed = Number.parseInt(value ?? '', 10);
@@ -28,18 +34,18 @@ function parseArgs(argv: string[]): ParsedArgs {
       port = parsed;
     } else {
       throw new Error(
-        `Unknown option: ${arg}\nUsage: casepilot-server [--workspace <dir>] [--registry <file>] [--port <port>]`,
+        `Unknown option: ${arg}\nUsage: casepilot-server [--workspace <dir>] [--registry <file>] [--host <addr>] [--port <port>]`,
       );
     }
   }
   // No --registry and no --workspace keeps the legacy behavior: serve the cwd.
   if (!workspace && !registryPath) workspace = process.cwd();
-  return { workspace, port, registryPath };
+  return { workspace, host, port, registryPath };
 }
 
 async function main(): Promise<void> {
-  const { workspace, port, registryPath } = parseArgs(process.argv.slice(2));
-  const { address } = await startServer({ workspace, port, registryPath });
+  const { workspace, host, port, registryPath } = parseArgs(process.argv.slice(2));
+  const { address } = await startServer({ workspace, host, port, registryPath });
   const scope = workspace ? `workspace: ${workspace}` : `registry: ${registryPath}`;
   process.stdout.write(`casepilot server listening on ${address} (${scope})\n`);
 }

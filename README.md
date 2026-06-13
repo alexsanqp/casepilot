@@ -73,6 +73,7 @@ npx casepilot export login
 | Multi-project registry | `casepilot projects add/list/remove`, dashboard project switcher |
 | MCP integration | browser-tools bridge for agent CLIs, control server for external AI agents |
 | Extensible providers | `registerProviderType()` hook for custom provider types |
+| Docker & Podman | containerized CLI and server with preinstalled Chromium; see [Docker guide](docs/docker.md) |
 
 ## Documentation
 
@@ -84,6 +85,7 @@ npx casepilot export login
 - [MCP servers](docs/mcp.md) - browser-tools bridge and control server
 - [Architecture](docs/architecture.md) - record/replay/heal flows, cost model, verdict guard
 - [Troubleshooting](docs/troubleshooting.md) - known issues and built-in mitigations
+- [Docker & Podman](docs/docker.md) - containerization, image build, running in CI/CD
 
 ## Packages
 

@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "case": "suite-run-all-button",
+  "url": "/",
+  "providerUsed": "agent",
+  "recordedAt": "2026-06-13T16:50:57.760Z",
+  "steps": [
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "value": "2000",
+      "note": "Wait for projects to finish loading"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=link[name=\"casepilot\"]",
+      "note": "Step 1: Click the casepilot project name on its project card"
+    },
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "value": "2000",
+      "note": "Wait for Cases page to load"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=heading[name=\"Cases\"]",
+      "note": "Step 2: Cases heading is visible"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=table",
+      "note": "Step 2: Cases table is visible"
+    },
+    {
+      "kind": "act",
+      "action": "scroll",
+      "selector": "role=button[name=\"Run all\"]",
+      "note": "Step 3: Scroll Run all button into view to hover"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=button[name=\"Run all\"]",
+      "note": "Expectation 1: Run all button is shown above the cases table"
+    },
+    {
+      "kind": "assert",
+      "assert": "textPresent",
+      "text": "Run all",
+      "note": "Expectation 2a: Run all button text is present on the page"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "button[title=\"Replay every recorded case as one suite\"]",
+      "note": "Expectation 2: Run all button is enabled with tooltip Replay every recorded case as one suite"
+    }
+  ],
+  "meta": {
+    "healCount": 0
+  }
+}

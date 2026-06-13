@@ -52,6 +52,13 @@ export interface ServerOptions {
   /** Single-workspace mode: served as the implicit project "default". */
   workspace?: string;
   port?: number;
+  /**
+   * Address to bind. Defaults to '127.0.0.1' (loopback-only). Pass '0.0.0.0'
+   * to make the server reachable through a container's published port — but
+   * note the REST API is UNAUTHENTICATED, so publish that port only to a
+   * trusted host (see docs/docker.md).
+   */
+  host?: string;
   /** Project registry file; defaults to %USERPROFILE%/.casepilot/projects.json (or $CASEPILOT_HOME/projects.json). */
   registryPath?: string;
   deps?: Partial<RunnerDeps>;
@@ -111,6 +118,6 @@ export async function startServer(
   options: ServerOptions,
 ): Promise<{ app: FastifyInstance; address: string; close(): Promise<void> }> {
   const app = await createServer(options);
-  const address = await app.listen({ port: options.port ?? 7700, host: '127.0.0.1' });
+  const address = await app.listen({ port: options.port ?? 7700, host: options.host ?? '127.0.0.1' });
   return { app, address, close: () => app.close() };
 }

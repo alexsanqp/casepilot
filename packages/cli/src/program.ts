@@ -69,7 +69,7 @@ export interface CliActions {
   runs(opts: { workspace: string; server?: string }): Promise<void>;
   report(opts: { workspace: string; runId: string; server?: string }): Promise<void>;
   transcript(opts: { workspace: string; runId: string }): Promise<void>;
-  serve(opts: { workspace?: string; port: number; registry?: string }): Promise<void>;
+  serve(opts: { workspace?: string; host: string; port: number; registry?: string }): Promise<void>;
   mcp(opts: { workspace: string }): Promise<void>;
   projectsList(opts: { registry?: string }): Promise<void>;
   projectsAdd(opts: { path: string; name?: string; registry?: string }): Promise<void>;
@@ -289,10 +289,15 @@ export function createProgram(actions: CliActions): Command {
   program
     .command('serve')
     .description('Start the casepilot REST server (all registered projects, or one workspace with --workspace)')
+    .option(
+      '--host <addr>',
+      'address to bind (use 0.0.0.0 inside a container; publish that port only to a trusted host — the API is unauthenticated)',
+      '127.0.0.1',
+    )
     .option('--port <port>', 'port to listen on', (v) => Number.parseInt(v, 10), 7700)
     .option('--registry <file>', 'project registry file (default ~/.casepilot/projects.json)')
-    .action(async (opts: { port: number; registry?: string }) => {
-      await actions.serve({ workspace: explicitWorkspace(), port: opts.port, registry: opts.registry });
+    .action(async (opts: { host: string; port: number; registry?: string }) => {
+      await actions.serve({ workspace: explicitWorkspace(), host: opts.host, port: opts.port, registry: opts.registry });
     });
 
   const projects = program
