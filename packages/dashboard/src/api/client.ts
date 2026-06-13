@@ -13,6 +13,10 @@ import type {
   RunSummary,
   StartRunRequest,
   StartRunResponse,
+  StartSuiteRequest,
+  StartSuiteResponse,
+  SuiteStatusResponse,
+  SuiteSummary,
 } from './types';
 
 export class ApiError extends Error {
@@ -118,6 +122,24 @@ export const screenshotUrl = (projectId: string, id: string, fileName: string): 
 
 export const archiveUrl = (projectId: string, id: string): string =>
   `${projectBase(projectId)}/runs/${encodeURIComponent(id)}/archive`;
+
+export const startSuite = (
+  projectId: string,
+  body: StartSuiteRequest,
+): Promise<StartSuiteResponse> =>
+  requestJson(`${projectBase(projectId)}/suites/runs`, { method: 'POST', ...json(body) });
+
+export const getSuite = (projectId: string, suiteId: string): Promise<SuiteStatusResponse> =>
+  requestJson(`${projectBase(projectId)}/suites/runs/${encodeURIComponent(suiteId)}`);
+
+export const listSuites = (projectId: string): Promise<SuiteSummary[]> =>
+  requestJson(`${projectBase(projectId)}/suites/runs`);
+
+export const suiteReportUrl = (
+  projectId: string,
+  suiteId: string,
+  kind: 'junit' | 'json',
+): string => `${projectBase(projectId)}/suites/runs/${encodeURIComponent(suiteId)}/${kind}`;
 
 export const listHeals = (projectId: string, all = false): Promise<HealsResponse> =>
   requestJson(`${projectBase(projectId)}/heals${all ? '?all=1' : ''}`);

@@ -188,3 +188,56 @@ export interface FsDirsResponse {
   parent: string | null;
   dirs: FsDir[];
 }
+
+export type SuiteStatus = 'running' | 'done' | 'error';
+
+export type SuiteCaseStatus = 'passed' | 'failed' | 'skipped';
+
+export interface SuiteCaseResult {
+  caseName: string;
+  status: SuiteCaseStatus;
+  /** Present iff the case actually ran. */
+  verdict?: Verdict;
+  /** Per-case run dir id; absent when skipped. */
+  runId?: string;
+  durationMs: number;
+  /** Why it was skipped, or the failure/infra-error message. */
+  reason?: string;
+}
+
+export interface SuiteResult {
+  startedAt: string;
+  finishedAt: string;
+  /** Selected cases. */
+  total: number;
+  /** Executed (not skipped). */
+  ran: number;
+  passed: number;
+  failed: number;
+  skipped: number;
+  cases: SuiteCaseResult[];
+}
+
+export interface SuiteSummary {
+  suiteId: string;
+  status: SuiteStatus;
+  startedAt: string;
+  passed?: number;
+  failed?: number;
+  skipped?: number;
+}
+
+export interface SuiteStatusResponse {
+  status: SuiteStatus;
+  result?: SuiteResult;
+  error?: string;
+}
+
+export interface StartSuiteRequest {
+  caseNames?: string[];
+  concurrency?: number;
+}
+
+export interface StartSuiteResponse {
+  suiteId: string;
+}
