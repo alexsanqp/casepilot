@@ -44,6 +44,36 @@ Semantics:
 - The top-level `expect` list is unchanged and still required: it holds the final, end-state expectations verified after all steps.
 - String and object steps mix freely; `do` carries exactly the same plain-English instruction a string step would.
 
+### Authenticated cases (useAuth / saveAuth)
+
+Two optional case fields let one recorded login be reused so other cases start already authenticated, skipping the login UI (see [getting-started.md](getting-started.md#log-in-once)):
+
+```yaml
+saveAuth: main      # this producer case logs in and saves its session as the "main" profile on a passing verdict
+useAuth: main       # this case starts from the "main" profile's session (no login UI)
+useAuth: none       # explicit opt-out: ignore any workspace default and start fresh
+```
+
+Both are optional strings naming an auth **profile**; `useAuth: none` is reserved as the opt-out value (not a real profile name). A profile is a Playwright `storageState` JSON file (cookies + localStorage). The fields are stored in `case.yaml` and copied into `replay.json` so a replay is self-contained.
+
+The workspace can set defaults in `casepilot.config.yaml`:
+
+| Key | Meaning |
+| --- | --- |
+| `defaultAuth: <profile>` | the profile every case loads unless it sets its own `useAuth` (or `useAuth: none`). Omit it for no default. |
+| `authRefresh: manual \| auto` | what happens when a needed profile is missing on a run (default `manual`); see [cli.md](cli.md#casepilot-run-case). |
+
+**Effective-useAuth resolution** (the profile a case actually loads), in order:
+
+1. the case's explicit `useAuth` (including `none`); else
+2. if the case has `saveAuth`, then `none` (a producer logs in fresh — it should not load the very profile it is about to write); else
+3. the workspace `defaultAuth`; else
+4. `none`.
+
+If the effective profile is `none`, the case starts with a fresh browser context. Otherwise its `storageState` is loaded at launch. A case with `saveAuth` writes its session to that profile only on a passing verdict.
+
+Profiles live at `<workspace>/auth/<profile>.json`. The directory holds live session **secrets** and is git-ignored: `casepilot init` adds `auth/` to the workspace `.gitignore`, and the first profile save also writes `<workspace>/auth/.gitignore` (`*`) so the secrets stay out of version control even if the root file is removed.
+
 ### Relative urls and baseUrl
 
 `url` may be either an absolute URL (`https://shop.example.com/cart`) or a relative path starting with `/` (`/cart`). Anything else (empty string, `cart`, `shop.example.com/cart`) is rejected.
@@ -83,6 +113,7 @@ Notes:
 - Only steps that **succeeded** during recording are stored; failed attempts never enter the replay.
 - `url` stores the case url verbatim, so a relative case url stays relative in the replay and resolves against the effective base URL on every run. `goto` targets recorded against a relative-url case are re-relativized when they land on the same origin the case url resolved to; cross-origin targets are kept absolute.
 - `meta.healCount` increments every time a healed step is written into the replay: on approval under the default `review` heal policy, or immediately under `auto` (see [cli.md](cli.md#casepilot-heals)).
+- `useAuth`/`saveAuth` (when set on the case) are copied into the replay so the replay carries the same auth intent (see [Authenticated cases](#authenticated-cases-useauth--saveauth)).
 
 ### Step kinds
 
