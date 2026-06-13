@@ -1,0 +1,11 @@
+name: suite-run-all
+url: /
+steps:
+  - Click the "casepilot" project name on its project card
+  - Wait for the cases table to appear
+  - Click the "Run all" button above the cases table
+  - Wait for the suite detail page with the "Suite" heading to appear
+expect:
+  - The page navigated to a suite detail page whose heading reads "Suite" followed by a short id
+  - The suite shows "Suite in progress…" or a finished result banner reading "PASS" or "FAIL"
+  - The page has a "← cases" link back to the cases list
