@@ -91,3 +91,8 @@ export function formatSuiteResult(suite: SuiteResult): string {
   const summary = `${suite.passed} passed, ${suite.failed} failed, ${suite.skipped} skipped (${suite.ran}/${suite.total} ran)`;
   return [...rows, '', summary].join('\n');
 }
+
+/** CI contract: pass only when at least one case ran and none failed. */
+export function suiteExitCode(suite: SuiteResult): number {
+  return suite.ran >= 1 && suite.failed === 0 ? 0 : 1;
+}

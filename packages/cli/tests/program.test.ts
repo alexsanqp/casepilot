@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createProgram, type CliActions } from '../src/program.js';
 import { createActions } from '../src/actions.js';
+import { parseConcurrency } from '../src/options.js';
 
 function stubActions(): CliActions {
   return {
@@ -391,6 +392,67 @@ describe('casepilot CLI parsing', () => {
     await parse(actions, ['run-all', 'login', 'checkout']);
     expect(calls[0]).toMatchObject({ caseNames: ['login', 'checkout'] });
   });
+
+  it('run-all plumbs the replay flags inherited from run', async () => {
+    const calls: unknown[] = [];
+    const actions = { ...stubActions(), runAll: vi.fn(async (o: unknown) => { calls.push(o); }) };
+    await parse(actions, [
+      'run-all',
+      '--slow-mo', '200',
+      '--step-delay', '50',
+      '--screenshots',
+      '--viewport', '1280x720',
+      '--no-optimize-video',
+      '--video-pad', '300',
+    ]);
+    expect(calls[0]).toMatchObject({
+      slowMo: 200,
+      stepDelayMs: 50,
+      screenshots: true,
+      viewport: { width: 1280, height: 720 },
+      optimizeVideo: false,
+      videoPadMs: 300,
+    });
+  });
+
+  it('run-all defaults screenshots to false and leaves optional flags undefined', async () => {
+    const calls: unknown[] = [];
+    const actions = { ...stubActions(), runAll: vi.fn(async (o: unknown) => { calls.push(o); }) };
+    await parse(actions, ['run-all']);
+    expect(calls[0]).toMatchObject({
+      screenshots: false,
+      viewport: undefined,
+      optimizeVideo: undefined,
+      videoPadMs: undefined,
+      slowMo: undefined,
+      stepDelayMs: undefined,
+    });
+  });
+
+  it('run-all --no-video yields video false; no flag leaves it undefined', async () => {
+    const off: unknown[] = [];
+    const offActions = { ...stubActions(), runAll: vi.fn(async (o: unknown) => { off.push(o); }) };
+    await parse(offActions, ['run-all', '--no-video']);
+    expect(off[0]).toMatchObject({ video: false });
+
+    const none: unknown[] = [];
+    const noneActions = { ...stubActions(), runAll: vi.fn(async (o: unknown) => { none.push(o); }) };
+    await parse(noneActions, ['run-all']);
+    expect(none[0]).toMatchObject({ video: undefined });
+  });
+});
+
+describe('parseConcurrency', () => {
+  it('accepts positive integers', () => {
+    expect(parseConcurrency('1')).toBe(1);
+    expect(parseConcurrency('4')).toBe(4);
+  });
+
+  it('rejects non-integers, zero, and negatives', () => {
+    for (const bad of ['abc', '0', '-1', '1.5']) {
+      expect(() => parseConcurrency(bad)).toThrow();
+    }
+  });
 });
 
 describe('createActions().runAll exit code', () => {
@@ -409,7 +471,7 @@ describe('createActions().runAll exit code', () => {
 
     const errors: string[] = [];
     const actions = createActions({ out: () => {}, err: (line) => errors.push(line) });
-    await actions.runAll({ workspace: ws, caseNames: [], heal: false, headed: false });
+    await actions.runAll({ workspace: ws, caseNames: [], heal: false, headed: false, screenshots: false });
 
     expect(process.exitCode).toBe(1);
     expect(errors).toContain('no recorded cases to run');

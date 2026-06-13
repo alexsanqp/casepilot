@@ -28,6 +28,7 @@ import {
   formatRunResult,
   formatRunSummaries,
   formatSuiteResult,
+  suiteExitCode,
 } from './format.js';
 import { startHeartbeat } from './heartbeat.js';
 import { formatTranscript } from './transcript.js';
@@ -153,14 +154,26 @@ export function createActions(io: CliIo = consoleIo): CliActions {
       process.exitCode = result.verdict === 'passed' ? 0 : 1;
     },
 
-    async runAll({ workspace, caseNames, concurrency, junit, json, heal, healPolicy, headed, video, baseUrl }) {
+    async runAll({ workspace, caseNames, concurrency, junit, json, heal, healPolicy, headed, video, screenshots, viewport, optimizeVideo, videoPadMs, slowMo, stepDelayMs, baseUrl }) {
       const ws = path.resolve(workspace);
       const suiteId = newSuiteId();
       const suite = await runSuite({
         workspace: ws,
         caseNames: caseNames.length > 0 ? caseNames : undefined,
         concurrency,
-        replayOptions: { heal, healPolicy, headed, video, baseUrl: resolveBaseUrl(baseUrl) },
+        replayOptions: {
+          heal,
+          healPolicy,
+          headed,
+          video,
+          screenshots,
+          viewport,
+          optimizeVideo,
+          videoPadMs,
+          slowMo,
+          stepDelayMs,
+          baseUrl: resolveBaseUrl(baseUrl),
+        },
         onProgress: (ev) => {
           if (ev.phase !== 'done' || !ev.case) return;
           const c = ev.case;
@@ -171,7 +184,7 @@ export function createActions(io: CliIo = consoleIo): CliActions {
       await writeSuiteReports(suiteDirPath(ws, suiteId), suite, { junit, json });
       io.out(formatSuiteResult(suite));
       io.out(`Reports:    ${suiteDirPath(ws, suiteId)}`);
-      process.exitCode = suite.ran >= 1 && suite.failed === 0 ? 0 : 1;
+      process.exitCode = suiteExitCode(suite);
       if (suite.ran === 0) io.err('no recorded cases to run');
     },
 

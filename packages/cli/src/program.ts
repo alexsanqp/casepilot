@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import {
   parseBaseUrl,
+  parseConcurrency,
   parseHealPolicy,
   parseSlowMo,
   parseStepDelay,
@@ -55,6 +56,13 @@ export interface CliActions {
     healPolicy?: 'review' | 'auto';
     headed: boolean;
     video?: boolean;
+    screenshots: boolean;
+    viewport?: Viewport;
+    /** Tri-state like video. */
+    optimizeVideo?: boolean;
+    videoPadMs?: number;
+    slowMo?: number;
+    stepDelayMs?: number;
     baseUrl?: string;
   }): Promise<void>;
   export(opts: { workspace: string; caseName: string; out?: string }): Promise<void>;
@@ -187,7 +195,7 @@ export function createProgram(actions: CliActions): Command {
     .command('run-all')
     .description('Replay every recorded case (or the named ones); exit code reflects the aggregate verdict')
     .argument('[cases...]', 'case names to run (default: all recorded cases)')
-    .option('--concurrency <n>', 'how many cases to replay in parallel (default 1)', (v) => Number.parseInt(v, 10))
+    .option('--concurrency <n>', 'how many cases to replay in parallel (default 1)', parseConcurrency)
     .option('--junit <file>', 'also write a JUnit XML report to this path')
     .option('--json <file>', 'also write a JSON suite report to this path')
     .option('--no-heal', 'disable AI healing of failed steps')
@@ -195,6 +203,13 @@ export function createProgram(actions: CliActions): Command {
     .option('--headed', 'run with a visible browser')
     .option('--video', 'record videos (workspace default: on)')
     .option('--no-video', 'disable video recording')
+    .option('--screenshots', 'capture a screenshot after every step')
+    .option('--viewport <WxH>', 'browser viewport, e.g. 1920x1080', parseViewport)
+    .option('--optimize-video', 'also write an idle-trimmed copy of each run video (workspace default: on)')
+    .option('--no-optimize-video', 'disable the idle-trimmed video copy')
+    .option('--video-pad <ms>', 'padding kept around each step when trimming idle video time', parseVideoPad)
+    .option('--slow-mo <ms>', 'milliseconds Playwright pauses between browser operations (max 10000)', parseSlowMo)
+    .option('--step-delay <ms>', 'milliseconds to wait between replay steps (max 10000)', parseStepDelay)
     .option('--base-url <url>', BASE_URL_HELP, parseBaseUrl)
     .action(
       async (
@@ -207,6 +222,12 @@ export function createProgram(actions: CliActions): Command {
           healPolicy?: 'review' | 'auto';
           headed?: boolean;
           video?: boolean;
+          screenshots?: boolean;
+          viewport?: Viewport;
+          optimizeVideo?: boolean;
+          videoPad?: number;
+          slowMo?: number;
+          stepDelay?: number;
           baseUrl?: string;
         },
       ) => {
@@ -220,6 +241,12 @@ export function createProgram(actions: CliActions): Command {
           healPolicy: opts.healPolicy,
           headed: !!opts.headed,
           video: opts.video,
+          screenshots: !!opts.screenshots,
+          viewport: opts.viewport,
+          optimizeVideo: opts.optimizeVideo,
+          videoPadMs: opts.videoPad,
+          slowMo: opts.slowMo,
+          stepDelayMs: opts.stepDelay,
           baseUrl: opts.baseUrl,
         });
       },

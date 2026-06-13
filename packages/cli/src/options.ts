@@ -42,6 +42,17 @@ function parsePacingMs(value: string, label: string): number {
   return ms;
 }
 
+export function parseConcurrency(value: string): number {
+  if (!/^\d+$/.test(value.trim())) {
+    throw new InvalidArgumentError(`concurrency must be a positive whole number, got "${value}"`);
+  }
+  const n = Number.parseInt(value, 10);
+  if (n < 1) {
+    throw new InvalidArgumentError(`concurrency must be at least 1, got "${value}"`);
+  }
+  return n;
+}
+
 export function parseSlowMo(value: string): number {
   return parsePacingMs(value, 'slow-mo');
 }
