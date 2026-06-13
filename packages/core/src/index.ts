@@ -4,7 +4,7 @@ export { scoreElement, rankElements, tokenize, type ScorableElement } from './br
 export { recordCase, RECORDER_TOOLS } from './engine/recorder.js';
 export { replayCase } from './engine/replayer.js';
 export { exportToPlaywrightSpec } from './engine/exporter.js';
-export { collapseStepResults, validateFinalOutcomes } from './engine/outcomes.js';
+export { assertionsWereVerified, collapseStepResults, validateFinalOutcomes } from './engine/outcomes.js';
 export { stripAnsi } from './text.js';
 export { computeKeepSegments, optimizeVideo, type KeepSegment } from './engine/videoOptimizer.js';
 export {

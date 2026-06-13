@@ -3,6 +3,7 @@ import { mkdir } from 'node:fs/promises';
 import { BrowserSession } from '../browser/session.js';
 import { saveReplayFile } from '../caseFile.js';
 import { captureStepScreenshotIfNeeded } from './stepScreenshots.js';
+import { assertionsWereVerified } from './outcomes.js';
 import { optimizeVideo } from './videoOptimizer.js';
 import { stripAnsi } from '../text.js';
 import type {
@@ -148,6 +149,15 @@ export async function replayCase(
         explanation = `Step ${i} (${describeStep(step)}) failed: ${error}`;
         break;
       }
+    }
+
+    // A clean run of zero assertions is a deterministic false pass: an empty
+    // replay, or one reduced to only act steps. Record mode guards this via
+    // validateFinalOutcomes; replay enforces the same contract here.
+    if (verdict === 'passed' && !assertionsWereVerified(stepResults)) {
+      verdict = 'failed';
+      explanation =
+        'Replay verified no assertions; a recorded case must assert at least one expectation.';
     }
 
     if (persistedHeals) {

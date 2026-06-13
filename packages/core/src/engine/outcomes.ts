@@ -19,6 +19,18 @@ export function collapseStepResults(stepResults: StepResult[]): StepResult[] {
 }
 
 /**
+ * True when at least one `assert` step actually ran and verified (passed or
+ * healed). Replay relies on this so a recorded case that asserts nothing — an
+ * empty replay, or one reduced to only act steps after a heal dropped its
+ * single assertion — cannot replay to a false "passed".
+ */
+export function assertionsWereVerified(stepResults: StepResult[]): boolean {
+  return stepResults.some(
+    (r) => r.step.kind === 'assert' && (r.status === 'passed' || r.status === 'healed'),
+  );
+}
+
+/**
  * Verdict guard over final per-index outcomes: every step's final attempt must
  * have passed (or healed) and at least one assert must have been executed.
  */

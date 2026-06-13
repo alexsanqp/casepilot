@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { StepResult } from '../src/types.js';
-import { collapseStepResults, validateFinalOutcomes } from '../src/engine/outcomes.js';
+import { assertionsWereVerified, collapseStepResults, validateFinalOutcomes } from '../src/engine/outcomes.js';
 import { stripAnsi } from '../src/text.js';
 
 function step(
@@ -87,6 +87,28 @@ describe('validateFinalOutcomes', () => {
     ]);
     expect(validation.ok).toBe(false);
     expect(validation.reason).toContain('act click failed: detached');
+  });
+});
+
+describe('assertionsWereVerified', () => {
+  it('is false when no steps ran at all', () => {
+    expect(assertionsWereVerified([])).toBe(false);
+  });
+
+  it('is false when only act steps ran (no assertion)', () => {
+    expect(assertionsWereVerified([step(0, 'passed'), step(1, 'healed')])).toBe(false);
+  });
+
+  it('is false when an assert ran but did not pass', () => {
+    expect(assertionsWereVerified([step(0, 'failed', { kind: 'assert', error: 'not visible' })])).toBe(false);
+  });
+
+  it('is true when at least one assert passed', () => {
+    expect(assertionsWereVerified([step(0, 'passed'), step(1, 'passed', { kind: 'assert' })])).toBe(true);
+  });
+
+  it('is true when an assert healed (counts as verified)', () => {
+    expect(assertionsWereVerified([step(0, 'healed', { kind: 'assert' })])).toBe(true);
   });
 });
 
