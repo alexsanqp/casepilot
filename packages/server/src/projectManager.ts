@@ -25,7 +25,11 @@ export interface ProjectManagerOptions {
 }
 
 export class ProjectManager {
-  private readonly contexts = new Map<string, ProjectContext>();
+  // Holds the in-flight (or resolved) build PROMISE per project id. Caching the
+  // promise — not just the resolved value — collapses concurrent cold
+  // getContext(id) calls onto a single RunRegistry/RunService, so a run started
+  // on the shared service is never orphaned by a later overwrite.
+  private readonly contexts = new Map<string, Promise<ProjectContext>>();
   private readonly defaultProject?: Project;
 
   constructor(private readonly options: ProjectManagerOptions) {
@@ -61,13 +65,30 @@ export class ProjectManager {
       return undefined;
     }
     const workspace = path.resolve(project.path);
-    const cached = this.contexts.get(id);
-    if (cached && cached.workspace === workspace) return cached;
+    const pending = this.contexts.get(id);
+    if (pending) {
+      const cached = await pending;
+      // Reuse only if the cached build is still for the same workspace;
+      // otherwise the project was re-pointed and must be rebuilt.
+      if (cached.workspace === workspace) return cached;
+    }
+    // Store the build PROMISE before the first await so a second concurrent
+    // caller awaits this same promise instead of starting a rival build.
+    const build = this.buildContext(project, workspace);
+    this.contexts.set(id, build);
+    try {
+      return await build;
+    } catch (err) {
+      // A failed build must not leave a poisoned promise cached.
+      if (this.contexts.get(id) === build) this.contexts.delete(id);
+      throw err;
+    }
+  }
+
+  private async buildContext(project: Project, workspace: string): Promise<ProjectContext> {
     const registry = await RunRegistry.open(runsDir(workspace));
     const service = new RunService(workspace, registry, this.options.deps);
-    const context: ProjectContext = { project, workspace, registry, service };
-    this.contexts.set(id, context);
-    return context;
+    return { project, workspace, registry, service };
   }
 
   async list(): Promise<ProjectInfo[]> {

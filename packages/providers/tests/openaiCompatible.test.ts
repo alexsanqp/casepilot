@@ -126,6 +126,79 @@ describe('createOpenAICompatibleProvider', () => {
     expect(result.text).toBe('I will click the button');
   });
 
+  it('keeps valid tool calls when a later call in the same batch is malformed', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        jsonResponse({
+          choices: [
+            {
+              message: {
+                content: null,
+                tool_calls: [
+                  { function: { name: 'click', arguments: '{"selector":"#save"}' } },
+                  { function: { name: 'click', arguments: '{"selector": "#ca' } },
+                ],
+              },
+            },
+          ],
+        }),
+      ),
+    );
+
+    const result = await makeProvider().generate({ messages, tools });
+    expect(result.toolCalls).toEqual([{ name: 'click', arguments: { selector: '#save' } }]);
+  });
+
+  it('falls back to retry text when the only tool call is malformed', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        jsonResponse({
+          choices: [
+            {
+              message: {
+                content: null,
+                tool_calls: [{ function: { name: 'click', arguments: '{"selector": "#sa' } }],
+              },
+            },
+          ],
+        }),
+      ),
+    );
+
+    const result = await makeProvider().generate({ messages, tools });
+    expect(result.toolCalls).toBeUndefined();
+    expect(result.text).toBe('Tool call(s) had malformed JSON arguments; retry with valid JSON.');
+  });
+
+  it('parses all tool calls in a fully valid batch', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        jsonResponse({
+          choices: [
+            {
+              message: {
+                content: null,
+                tool_calls: [
+                  { function: { name: 'click', arguments: { selector: '#save' } } },
+                  { function: { name: 'click', arguments: '{"selector":"#cancel"}' } },
+                ],
+              },
+            },
+          ],
+        }),
+      ),
+    );
+
+    const result = await makeProvider().generate({ messages, tools });
+    expect(result.toolCalls).toEqual([
+      { name: 'click', arguments: { selector: '#save' } },
+      { name: 'click', arguments: { selector: '#cancel' } },
+    ]);
+  });
+
   it('parses a fenced-JSON tool call from plain text content', async () => {
     vi.stubGlobal(
       'fetch',

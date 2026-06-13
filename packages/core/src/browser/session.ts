@@ -313,24 +313,32 @@ export class BrowserSession {
     const session = new BrowserSession(options);
     await mkdir(options.artifactsDir, { recursive: true });
     session.browser = await chromium.launch({ headless: options.headless ?? true, slowMo: options.slowMo });
-    const viewport = options.viewport ?? DEFAULT_VIEWPORT;
-    session.context = await session.browser.newContext({
-      viewport,
-      recordVideo: options.video
-        ? { dir: path.join(options.artifactsDir, 'video'), size: viewport }
-        : undefined,
-    });
-    const dialogPolicy = options.dialogs ?? 'accept';
-    session.context.on('page', (page) => {
-      page.on('dialog', (dialog) => {
-        session.lastDialogMessage = `${dialog.type()}: ${dialog.message()}`;
-        void (dialogPolicy === 'accept' ? dialog.accept() : dialog.dismiss()).catch(() => {});
+    // The browser process is now spawned. If context/page creation throws, the
+    // caller never gets a session to close, so tear the browser down here to
+    // avoid orphaning a Chromium process (zombie accumulation on a server).
+    try {
+      const viewport = options.viewport ?? DEFAULT_VIEWPORT;
+      session.context = await session.browser.newContext({
+        viewport,
+        recordVideo: options.video
+          ? { dir: path.join(options.artifactsDir, 'video'), size: viewport }
+          : undefined,
       });
-    });
-    session.pageInstance = await session.context.newPage();
-    session.pageInstance.setDefaultTimeout(ACTION_TIMEOUT_MS);
-    session.startedAtMs = Date.now();
-    return session;
+      const dialogPolicy = options.dialogs ?? 'accept';
+      session.context.on('page', (page) => {
+        page.on('dialog', (dialog) => {
+          session.lastDialogMessage = `${dialog.type()}: ${dialog.message()}`;
+          void (dialogPolicy === 'accept' ? dialog.accept() : dialog.dismiss()).catch(() => {});
+        });
+      });
+      session.pageInstance = await session.context.newPage();
+      session.pageInstance.setDefaultTimeout(ACTION_TIMEOUT_MS);
+      session.startedAtMs = Date.now();
+      return session;
+    } catch (err) {
+      await session.browser?.close().catch(() => {});
+      throw err;
+    }
   }
 
   get page(): Page {

@@ -23,6 +23,31 @@ declare module 'fastify' {
 
 const pkg = createRequire(import.meta.url)('../package.json') as { version: string };
 
+const LOOPBACK_HOSTNAMES = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
+
+/**
+ * The server binds to 127.0.0.1, but binding alone does not stop a browser
+ * drive-by: any page the user visits can `fetch('http://127.0.0.1:7700/...')`,
+ * and `{ origin: true }` would REFLECT that page's origin into
+ * Access-Control-Allow-Origin, letting it READ the response (filesystem
+ * listings, artifacts, transcripts). So we reflect ONLY loopback origins.
+ * Same-origin / curl requests carry no Origin header and are allowed. Because
+ * the API uses JSON bodies and DELETE, a cross-origin state-changing request
+ * triggers a CORS preflight that a non-loopback origin now fails, which also
+ * closes CSRF on POST/DELETE. The dashboard (http://localhost:7701) keeps
+ * working.
+ */
+function isLoopbackOrigin(origin: string): boolean {
+  let hostname: string;
+  try {
+    hostname = new URL(origin).hostname;
+  } catch {
+    return false;
+  }
+  // URL strips the brackets from an IPv6 host, so [::1] arrives as "::1".
+  return LOOPBACK_HOSTNAMES.has(hostname);
+}
+
 export interface ServerOptions {
   /** Single-workspace mode: served as the implicit project "default". */
   workspace?: string;
@@ -48,7 +73,17 @@ export async function createServer(options: ServerOptions = {}): Promise<Fastify
   });
 
   const app = Fastify({ logger: false });
-  await app.register(cors, { origin: true });
+  await app.register(cors, {
+    // Reflect Access-Control-Allow-Origin only for loopback origins; see
+    // isLoopbackOrigin for the drive-by/CSRF rationale.
+    origin(origin, callback) {
+      if (!origin || isLoopbackOrigin(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(null, false);
+    },
+  });
 
   const defaultContext = manager.hasDefault ? await manager.getContext('default') : undefined;
   if (defaultContext) {

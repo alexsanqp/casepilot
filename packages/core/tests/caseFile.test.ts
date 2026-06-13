@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -157,6 +157,21 @@ describe('replay files', () => {
     const filePath = path.join(dir, 'replay.json');
     await saveReplayFile(filePath, replay);
     expect(await loadReplayFile(filePath)).toEqual(replay);
+  });
+
+  it('writes atomically and leaves no .tmp file behind after a successful save', async () => {
+    const atomicDir = await mkdtemp(path.join(tmpdir(), 'casepilot-atomic-'));
+    try {
+      const filePath = path.join(atomicDir, 'replay.json');
+      await saveReplayFile(filePath, replay);
+      await saveReplayFile(filePath, { ...replay, meta: { healCount: 3 } });
+      expect((await loadReplayFile(filePath)).meta.healCount).toBe(3);
+      const entries = await readdir(atomicDir);
+      expect(entries).toEqual(['replay.json']);
+      expect(entries.some((e) => e.endsWith('.tmp'))).toBe(false);
+    } finally {
+      await rm(atomicDir, { recursive: true, force: true });
+    }
   });
 
   it('rejects unsupported versions', () => {

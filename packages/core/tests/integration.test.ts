@@ -318,6 +318,47 @@ describe('record → replay → heal → video', () => {
   });
 });
 
+describe('replay verdict requires a verified assertion (C1)', () => {
+  it('(a) a replay with only act steps fails instead of false-passing', async () => {
+    const actOnly: ReplayFile = {
+      version: 1,
+      case: 'act only',
+      url: fixtureUrl,
+      providerUsed: 'fake',
+      recordedAt: '2026-06-13T00:00:00.000Z',
+      steps: [{ kind: 'act', action: 'click', selector: 'role=button[name="Save"]' }],
+      meta: { healCount: 0 },
+    };
+    const result = await replayCase(actOnly, { artifactsDir: dirFor('c1-act-only') });
+    expect(result.verdict).toBe('failed');
+    expect(result.explanation).toContain('assert at least one expectation');
+    // the act step itself still executed cleanly
+    expect(result.steps.map((s) => s.status)).toEqual(['passed']);
+  });
+
+  it('(b) a replay with empty steps fails', async () => {
+    const empty: ReplayFile = {
+      version: 1,
+      case: 'empty',
+      url: fixtureUrl,
+      providerUsed: 'fake',
+      recordedAt: '2026-06-13T00:00:00.000Z',
+      steps: [],
+      meta: { healCount: 0 },
+    };
+    const result = await replayCase(empty, { artifactsDir: dirFor('c1-empty') });
+    expect(result.verdict).toBe('failed');
+    expect(result.explanation).toContain('assert at least one expectation');
+    expect(result.steps).toHaveLength(0);
+  });
+
+  it('(c) a replay with a passing assert still passes', async () => {
+    const result = await replayCase(structuredClone(recordedReplay), { artifactsDir: dirFor('c1-asserts') });
+    expect(result.verdict).toBe('passed');
+    expect(result.steps.map((s) => s.status)).toEqual(['passed', 'passed']);
+  });
+});
+
 describe('replay pacing', () => {
   const pacedReplay = (): ReplayFile => ({
     version: 1,

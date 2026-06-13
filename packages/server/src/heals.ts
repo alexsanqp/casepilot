@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { readFile, rename, writeFile } from 'node:fs/promises';
 import { z } from 'zod';
 import type { ReplayStep } from '@casepilot/core';
+import { workspaceMutex } from './mutex.js';
 
 const replayStepSchema = z
   .object({ kind: z.enum(['act', 'assert']) })
@@ -48,6 +49,16 @@ export function healsFilePath(workspace: string): string {
   return path.join(workspace, 'heals.json');
 }
 
+/**
+ * Mutex key for all read-modify-write operations within a workspace. Using the
+ * absolute workspace path (heals.json + cases/<name>.replay.json all live under
+ * it) means addHeal, resolveHeal, and approveHeal in the same workspace are
+ * serialized against each other and cannot interleave their critical sections.
+ */
+export function workspaceLockKey(workspace: string): string {
+  return path.resolve(healsFilePath(workspace));
+}
+
 export function newHealId(): string {
   return randomBytes(4).toString('hex');
 }
@@ -81,7 +92,7 @@ export async function listHeals(workspace: string, status?: HealStatus): Promise
 
 export type HealInput = Omit<HealRecord, 'id' | 'status' | 'resolvedAt'>;
 
-export async function addHeal(workspace: string, input: HealInput): Promise<HealRecord> {
+async function addHealUnlocked(workspace: string, input: HealInput): Promise<HealRecord> {
   const file = await loadHeals(workspace);
   const heal: HealRecord = { ...input, id: newHealId(), status: 'pending' };
   file.heals.push(heal);
@@ -89,11 +100,21 @@ export async function addHeal(workspace: string, input: HealInput): Promise<Heal
   return heal;
 }
 
+export async function addHeal(workspace: string, input: HealInput): Promise<HealRecord> {
+  return workspaceMutex.run(workspaceLockKey(workspace), () => addHealUnlocked(workspace, input));
+}
+
 export type ResolveOutcome =
   | { ok: true; heal: HealRecord }
   | { ok: false; code: 'not-found' | 'already-resolved' };
 
-export async function resolveHeal(
+/**
+ * Read-modify-write of a heal's status. Caller is responsible for holding the
+ * workspace mutex (see {@link resolveHeal}); approveHeal/rejectHeal invoke this
+ * from inside their own already-locked critical section to avoid re-entrant
+ * deadlock on the same key.
+ */
+export async function resolveHealUnlocked(
   workspace: string,
   healId: string,
   status: 'approved' | 'rejected',
@@ -106,4 +127,14 @@ export async function resolveHeal(
   heal.resolvedAt = new Date().toISOString();
   await saveHeals(workspace, file);
   return { ok: true, heal };
+}
+
+export async function resolveHeal(
+  workspace: string,
+  healId: string,
+  status: 'approved' | 'rejected',
+): Promise<ResolveOutcome> {
+  return workspaceMutex.run(workspaceLockKey(workspace), () =>
+    resolveHealUnlocked(workspace, healId, status),
+  );
 }
