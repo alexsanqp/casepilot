@@ -115,6 +115,7 @@ export function buildAgentTaskPrompt(spec: CaseSpec): string {
     ...spec.expect.map((e, i) => `  ${i + 1}. ${e}`),
     'Rules:',
     '- Use query_page to locate elements and prefer the selectors it returns.',
+    '- Choose stable selectors: never target an element by text that changes between runs (timestamps, dates, durations, run ids, counts). For dynamic lists/rows (e.g. run history), use the positional selector query_page returns (the first/Nth row) so the replay still matches after the data changes.',
     '- When a step lists "after this step, verify" expectations, verify them with assert calls immediately after performing that step, before starting the next step. If such an assert fails, the case fails at that step.',
     '- Every successful act/assert is recorded into a deterministic replay.',
     '- Your turn budget is limited: batch multiple independent tool calls in a single message whenever possible (e.g. query_page for the next element together with an act on the current one, or several asserts at once).',
