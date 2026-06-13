@@ -37,6 +37,27 @@ const SELECTABLE_ARIA_ROLES = new Set([
   'textbox',
 ]);
 
+// The subset of selectable roles that name interactive controls. Their accessible
+// name is an intrinsic *label* (a static UI string), stable even inside a data row.
+// Roles NOT listed here (heading, row, table, region, dialog, listbox, menu, alert)
+// derive their name from aggregated descendant text — where volatile data
+// (timestamps, ids, counts) leaks in — so those fall back to a structural path.
+const CONTROL_ROLES = new Set([
+  'button',
+  'checkbox',
+  'combobox',
+  'link',
+  'menuitem',
+  'option',
+  'radio',
+  'searchbox',
+  'slider',
+  'spinbutton',
+  'switch',
+  'tab',
+  'textbox',
+]);
+
 interface RawElement {
   role: string;
   /** False when the role came from the clickable-div heuristic, so `role=` selectors would not match. */
@@ -44,6 +65,13 @@ interface RawElement {
   name: string;
   context: string;
   css: string;
+  /**
+   * True when the element sits inside a repeating collection (a row of a
+   * multi-row table, an item of a multi-item list, or an ARIA row/cell/listitem).
+   * Such elements carry per-record data, so name-based selectors are avoided in
+   * favour of the structural css path.
+   */
+  inCollection: boolean;
 }
 
 function hasScheme(url: string): boolean {
@@ -109,11 +137,44 @@ function escapeSelectorString(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
-function buildSelector(el: RawElement): string {
-  if (el.roleConfident && SELECTABLE_ARIA_ROLES.has(el.role) && el.name) {
+/**
+ * Last-resort guard for *container* text. Control labels are trusted structurally
+ * (see buildSelector) and never reach this check; it only gates the name of
+ * non-control roles (heading, region, cell, …) whose accessible name is their
+ * aggregated descendant text. A name embedding dates, clock times, durations or
+ * long digit runs (run ids) would break the moment the data changes — e.g.
+ * role=heading[name="Run 20260612-182713-26d8b5"] — so such elements fall back to
+ * a structural css path instead.
+ */
+export function nameLooksDynamic(name: string): boolean {
+  return (
+    /\d{1,2}[./]\d{1,2}[./]\d{2,4}/.test(name) || // dates: 12.06.2026, 6/12/26
+    /\d{1,2}:\d{2}/.test(name) || // clock times: 20:38, 20:38:27
+    /\b\d+(?:\.\d+)?\s?(?:ms|s|m|h)\b/i.test(name) || // durations: 10.2s, 250ms, 2m
+    /\d{5,}/.test(name) // long digit runs: 20260612, 182713 (run-id / date fragments)
+  );
+}
+
+/**
+ * Picks the most change-resilient selector for an element from a single DOM
+ * snapshot, using structural signals instead of guessing volatility from
+ * characters:
+ *   1. Interactive control (CONTROL_ROLES)? Its name is a stable label — trust it,
+ *      even inside a data row (disambiguateSelectors adds `>> nth=N` for which one).
+ *   2. Otherwise the name is container/descendant text: usable only when the
+ *      element is not in a repeating collection and the text is not dynamic.
+ *   3. Anything else (control with no name, in-collection data, dynamic or missing
+ *      text) falls back to the structural css path, which survives data changes.
+ */
+export function buildSelector(el: RawElement): string {
+  if (el.name && el.roleConfident && CONTROL_ROLES.has(el.role)) {
     return `role=${el.role}[name="${escapeSelectorString(el.name)}"]`;
   }
-  if (el.name) {
+  const nameUsable = !!el.name && !el.inCollection && !nameLooksDynamic(el.name);
+  if (nameUsable && el.roleConfident && SELECTABLE_ARIA_ROLES.has(el.role)) {
+    return `role=${el.role}[name="${escapeSelectorString(el.name)}"]`;
+  }
+  if (nameUsable) {
     return `text="${escapeSelectorString(el.name)}"`;
   }
   return el.css;
@@ -263,11 +324,39 @@ function collectRawElements(): RawElement[] {
     return bits.filter(Boolean).join(' | ');
   }
 
+  // Structural "is this per-record data?" signal: an element belongs to a
+  // repeating collection when it lives in a row of a multi-row table, an item of
+  // a multi-item list, or an ARIA row/cell/listitem. Its accessible name is then
+  // row data (volatile), so buildSelector prefers the positional css path.
+  function inRepeatingCollection(el: Element): boolean {
+    const tr = el.closest('tr');
+    if (tr) {
+      const body = tr.parentElement; // tbody/thead/tfoot/table
+      if (body && body.querySelectorAll(':scope > tr').length > 1) return true;
+    }
+    const li = el.closest('li');
+    if (li) {
+      const list = li.parentElement;
+      if (list && list.querySelectorAll(':scope > li').length > 1) return true;
+    }
+    const unit = el.closest('[role="row"],[role="listitem"],[role="gridcell"],[role="cell"]');
+    if (unit) {
+      const role = unit.getAttribute('role');
+      if (role === 'gridcell' || role === 'cell') return true; // a cell always lives in a row
+      const parent = unit.parentElement;
+      if (parent && Array.from(parent.children).filter((c) => c.getAttribute('role') === role).length > 1) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   const out: RawElement[] = [];
   for (const el of Array.from(document.body.querySelectorAll('*'))) {
     if (out.length >= 400) break;
     const tag = el.tagName.toLowerCase();
     if (SKIP_TAGS.has(tag)) continue;
+    if (el.hasAttribute('data-casepilot-cursor')) continue; // injected pointer overlay, never a target
     const rect = el.getBoundingClientRect();
     if (rect.width === 0 && rect.height === 0) continue;
 
@@ -288,9 +377,94 @@ function collectRawElements(): RawElement[] {
       name: accessibleName(el),
       context: contextOf(el),
       css: cssPath(el),
+      inCollection: inRepeatingCollection(el),
     });
   }
   return out;
+}
+
+/**
+ * Injected into every page (when recording video) so the otherwise-invisible
+ * Playwright pointer shows up in the recording: a ring follows mousemove and
+ * pulses on mousedown. Marked data-casepilot-cursor + pointer-events:none and
+ * excluded from collectRawElements, so it never affects selectors or clicks.
+ */
+function cursorOverlayScript(): void {
+  const ID = '__casepilot_cursor__';
+  const flag = window as unknown as { __casepilotCursorReady?: boolean };
+  // Create the overlay, or re-attach it if a client router replaced the body
+  // subtree (keeps a single overlay alive across SPA navigations).
+  const ensureDot = (): HTMLElement | null => {
+    const root = document.body ?? document.documentElement;
+    if (!root) return null;
+    let dot = document.getElementById(ID);
+    if (!dot) {
+      dot = document.createElement('div');
+      dot.id = ID;
+      dot.setAttribute('data-casepilot-cursor', '');
+      Object.assign(dot.style, {
+        position: 'fixed',
+        left: '0px',
+        top: '0px',
+        width: '22px',
+        height: '22px',
+        marginLeft: '-11px',
+        marginTop: '-11px',
+        borderRadius: '50%',
+        border: '2px solid rgba(255,60,60,0.95)',
+        background: 'rgba(255,60,60,0.25)',
+        boxShadow: '0 0 8px 2px rgba(255,60,60,0.6)',
+        zIndex: '2147483647',
+        pointerEvents: 'none',
+        opacity: '0',
+      });
+    }
+    if (!dot.isConnected) root.appendChild(dot);
+    return dot;
+  };
+  const install = (): void => {
+    // Bind the listeners once per document; on full navigation addInitScript
+    // re-runs against a fresh window, so the flag resets and we rebind there.
+    if (flag.__casepilotCursorReady) {
+      ensureDot();
+      return;
+    }
+    flag.__casepilotCursorReady = true;
+    let shown = false;
+    window.addEventListener(
+      'mousemove',
+      (e: MouseEvent) => {
+        const dot = ensureDot();
+        if (!dot) return;
+        dot.style.left = `${e.clientX}px`;
+        dot.style.top = `${e.clientY}px`;
+        if (!shown) {
+          dot.style.opacity = '1';
+          shown = true;
+        }
+      },
+      true,
+    );
+    window.addEventListener(
+      'mousedown',
+      () => {
+        ensureDot()?.animate(
+          [
+            { transform: 'scale(1)', opacity: 1 },
+            { transform: 'scale(2.4)', opacity: 0.3 },
+            { transform: 'scale(1)', opacity: 1 },
+          ],
+          { duration: 320, easing: 'ease-out' },
+        );
+      },
+      true,
+    );
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', install);
+  } else {
+    install();
+  }
 }
 
 export class BrowserSession {
@@ -340,6 +514,11 @@ export class BrowserSession {
           void (dialogPolicy === 'accept' ? dialog.accept() : dialog.dismiss()).catch(() => {});
         });
       });
+      // Make the pointer visible in the recording (record + replay) so users can
+      // follow where each step clicks. Context-level so it survives navigations.
+      if (options.video) {
+        await session.context.addInitScript(cursorOverlayScript);
+      }
       session.pageInstance = await session.context.newPage();
       session.pageInstance.setDefaultTimeout(ACTION_TIMEOUT_MS);
       session.startedAtMs = Date.now();
@@ -399,6 +578,23 @@ export class BrowserSession {
     return mapped ? { ...step, selector: mapped } : step;
   }
 
+  /**
+   * Cosmetic: when recording video, glide the (otherwise invisible) pointer to the
+   * target so the injected cursor overlay visibly travels there before the click
+   * lands. Best-effort — never fails the action.
+   */
+  private async glideToSelector(selector: string): Promise<void> {
+    if (!this.options.video) return;
+    try {
+      const box = await this.pageInstance.locator(selector).first().boundingBox({ timeout: 1000 });
+      if (!box) return;
+      await this.pageInstance.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 16 });
+      await this.pageInstance.waitForTimeout(120);
+    } catch {
+      // best-effort cursor animation; the click below still runs
+    }
+  }
+
   async act(step: ActStep): Promise<void> {
     const resolved = this.resolveStep(step);
     const selector = resolved.selector;
@@ -413,12 +609,16 @@ export class BrowserSession {
         await this.pageInstance.goto(resolveUrl(target, this.options.baseUrl), { timeout: NAVIGATION_TIMEOUT_MS });
         break;
       }
-      case 'click':
-        await this.pageInstance.click(requireSelector(), { timeout: ACTION_TIMEOUT_MS });
+      case 'click': {
+        const sel = requireSelector();
+        await this.glideToSelector(sel);
+        await this.pageInstance.click(sel, { timeout: ACTION_TIMEOUT_MS });
         break;
+      }
       case 'fill': {
         const sel = requireSelector();
         if (resolved.value === undefined) throw new Error('act fill requires value');
+        await this.glideToSelector(sel);
         // click first so combobox-style inputs open/focus before typing
         await this.pageInstance.click(sel, { timeout: ACTION_TIMEOUT_MS });
         await this.pageInstance.fill(sel, resolved.value, { timeout: ACTION_TIMEOUT_MS });

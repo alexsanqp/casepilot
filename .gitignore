@@ -5,4 +5,6 @@ artifacts/
 test-results/
 *.tsbuildinfo
 runs/
+suites/
+auth/
 heals.json

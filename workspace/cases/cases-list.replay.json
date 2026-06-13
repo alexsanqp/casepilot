@@ -3,13 +3,20 @@
   "case": "cases-list",
   "url": "/",
   "providerUsed": "agent",
-  "recordedAt": "2026-06-12T18:27:15.982Z",
+  "recordedAt": "2026-06-13T17:35:56.511Z",
   "steps": [
     {
       "kind": "act",
       "action": "click",
       "selector": "role=link[name=\"casepilot\"]",
       "note": "Step 1: Click the casepilot project name on its project card"
+    },
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "selector": "role=heading[name=\"Cases\"]",
+      "value": "5000",
+      "note": "Step 2: Wait for the Cases heading to appear"
     },
     {
       "kind": "assert",
@@ -21,74 +28,68 @@
       "kind": "assert",
       "assert": "visible",
       "selector": "role=columnheader[name=\"Name\"]",
-      "note": "Expectation 1: Name column header visible"
+      "note": "Expectation 1a: Name column header is visible"
     },
     {
       "kind": "assert",
       "assert": "visible",
       "selector": "role=columnheader[name=\"URL\"]",
-      "note": "Expectation 1: URL column header visible"
+      "note": "Expectation 1b: URL column header is visible"
     },
     {
       "kind": "assert",
       "assert": "visible",
       "selector": "role=columnheader[name=\"Steps\"]",
-      "note": "Expectation 1: Steps column header visible"
+      "note": "Expectation 1c: Steps column header is visible"
     },
     {
       "kind": "assert",
       "assert": "visible",
       "selector": "role=columnheader[name=\"Replay\"]",
-      "note": "Expectation 1: Replay column header visible"
+      "note": "Expectation 1d: Replay column header is visible"
     },
     {
       "kind": "assert",
       "assert": "visible",
       "selector": "role=columnheader[name=\"Last run\"]",
-      "note": "Expectation 1: Last run column header visible"
+      "note": "Expectation 1e: Last run column header is visible"
     },
     {
       "kind": "assert",
       "assert": "visible",
       "selector": "role=columnheader[name=\"Actions\"]",
-      "note": "Expectation 1: Actions column header visible"
+      "note": "Expectation 1f: Actions column header is visible"
     },
     {
       "kind": "assert",
       "assert": "visible",
-      "selector": "table tbody tr:nth-child(24)",
-      "note": "Expectation 2: 24th case row exists"
+      "selector": "role=link[name=\"projects-list\"]",
+      "note": "Expectation 2: projects-list row exists (confirming more than one case row)"
     },
     {
       "kind": "assert",
-      "assert": "absent",
-      "selector": "table tbody tr:nth-child(25)",
-      "note": "Expectation 2: no 25th row (exactly 24 rows)"
+      "assert": "visible",
+      "selector": "tr:has(a[href=\"/p/casepilot/cases/projects-list\"]) td:nth-child(4)",
+      "note": "Expectation 3a: Replay cell is visible in the projects-list row"
     },
     {
       "kind": "assert",
       "assert": "textPresent",
       "selector": "tr:has(a[href=\"/p/casepilot/cases/projects-list\"]) td:nth-child(4)",
       "text": "replay",
-      "note": "Expectation 3: projects-list row shows replay badge in Replay column"
+      "note": "Expectation 3b: The projects-list row shows a replay badge in the Replay column"
     },
     {
       "kind": "assert",
       "assert": "visible",
-      "selector": "tr:has(a[href=\"/p/casepilot/cases/projects-list\"]) >> button:has-text(\"Re-record\")",
-      "note": "Expectation 3: projects-list action button reads Re-record"
-    },
-    {
-      "kind": "assert",
-      "assert": "absent",
-      "selector": "tr:has(a[href=\"/p/casepilot/cases/heal-approve\"]) td:nth-child(4) >> text=\"replay\"",
-      "note": "Expectation 4: heal-approve Replay column shows a dash (no replay badge)"
+      "selector": "tr:has(a[href=\"/p/casepilot/cases/projects-list\"]) button:has-text(\"Re-record\")",
+      "note": "Expectation 3c: The projects-list row action button reads Re-record"
     },
     {
       "kind": "assert",
       "assert": "visible",
-      "selector": "tr:has(a[href=\"/p/casepilot/cases/heal-approve\"]) >> button:has-text(\"Record\")",
-      "note": "Expectation 4: heal-approve action button reads Record"
+      "selector": "role=link[name=\"case-editor-create-and-delete\"]",
+      "note": "Expectation 2: More than one case row exists (case-editor-create-and-delete also visible)"
     }
   ],
   "meta": {

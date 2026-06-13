@@ -94,6 +94,7 @@ function systemPrompt(): string {
     'Your job: execute the human-language test steps in order, then verify every expectation with assert calls.',
     'Workflow: use query_page (or snapshot) to find elements, act to interact, assert to verify.',
     'Prefer selectors returned by query_page. Every successful act/assert is recorded into a deterministic replay.',
+    'Choose stable selectors: never target an element by text that changes between runs (timestamps, dates, durations, run ids, counts). For dynamic lists/rows (e.g. run history), use the positional selector query_page returns (the first/Nth row) so the replay still matches after the data changes.',
     'Some steps carry their own expectations ("after this step, verify"). Verify those with assert calls immediately after performing that step, before starting the next step. If such an assert fails, the case fails at that step.',
     'You MUST finish by calling report_result with passed and a short explanation. Do not stop before that.',
   ].join('\n');

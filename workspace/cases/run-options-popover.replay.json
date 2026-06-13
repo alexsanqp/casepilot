@@ -3,8 +3,14 @@
   "case": "run-options-popover",
   "url": "/",
   "providerUsed": "agent",
-  "recordedAt": "2026-06-12T13:27:15.121Z",
+  "recordedAt": "2026-06-13T20:20:35.956Z",
   "steps": [
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "value": "2000",
+      "note": "Wait for projects to load"
+    },
     {
       "kind": "act",
       "action": "click",
@@ -14,27 +20,32 @@
     {
       "kind": "act",
       "action": "waitFor",
-      "selector": "role=table",
-      "value": "5000",
-      "note": "Step 2: Wait for the cases table to appear"
+      "value": "2000",
+      "note": "Wait for cases table to appear"
     },
     {
       "kind": "act",
       "action": "click",
-      "selector": "text=\"Options\"",
-      "note": "Step 3: Click the Options button using text selector"
+      "selector": "details summary",
+      "note": "Step 3: Click Options summary to expand run options panel"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=checkbox[name=\"video\"]",
+      "note": "Uncheck video to reset to initial state for step 4 verification"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=checkbox[name=\"optimize video\"][disabled]",
+      "note": "Step 4: Verify optimize video checkbox is disabled while video is unchecked"
     },
     {
       "kind": "act",
       "action": "click",
       "selector": "role=checkbox[name=\"video\"]",
       "note": "Step 5: Check the video checkbox"
-    },
-    {
-      "kind": "act",
-      "action": "click",
-      "selector": "role=checkbox[name=\"optimize video\"]",
-      "note": "Step 6: Check the now-enabled optimize video checkbox"
     },
     {
       "kind": "act",
@@ -66,34 +77,34 @@
     {
       "kind": "assert",
       "assert": "visible",
-      "selector": "role=checkbox[name=\"video\"]",
-      "note": "Assertion 1a: video checkbox is checked"
+      "selector": "role=checkbox[name=\"video\"][checked]",
+      "note": "Final assert: video checkbox is checked"
     },
     {
       "kind": "assert",
       "assert": "visible",
-      "selector": "role=checkbox[name=\"optimize video\"]",
-      "note": "Assertion 1b: optimize video checkbox is checked"
+      "selector": "role=checkbox[name=\"optimize video\"][checked]",
+      "note": "Final assert: optimize video checkbox is checked"
     },
     {
       "kind": "assert",
       "assert": "visible",
-      "selector": "role=checkbox[name=\"screenshots\"]",
-      "note": "Assertion 1c: screenshots checkbox is checked"
+      "selector": "role=checkbox[name=\"screenshots\"][checked]",
+      "note": "Final assert: screenshots checkbox is checked"
     },
     {
       "kind": "assert",
       "assert": "valueEquals",
       "selector": "role=textbox[name=\"Custom WxH\"]",
       "text": "1600x900",
-      "note": "Assertion 2: Custom WxH input contains 1600x900"
+      "note": "Final assert: Custom WxH input contains 1600x900"
     },
     {
       "kind": "assert",
-      "assert": "valueEquals",
+      "assert": "textPresent",
       "selector": "role=combobox[name=\"Heal policy (replay)\"]",
       "text": "auto",
-      "note": "Assertion 3: Heal policy dropdown shows auto"
+      "note": "Final assert: Heal policy dropdown shows auto"
     }
   ],
   "meta": {

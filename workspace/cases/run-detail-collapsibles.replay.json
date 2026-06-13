@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "case": "run-detail-collapsibles",
+  "url": "/",
+  "providerUsed": "agent",
+  "recordedAt": "2026-06-13T20:24:25.845Z",
+  "steps": [
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=link[name=\"casepilot\"]",
+      "note": "Step 1: Click the casepilot project name on its project card"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=link[name=\"cases-list\"]",
+      "note": "Step 2: Click the case name link \"cases-list\" in the table"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "#root > div > main > div > div > section:nth-of-type(3) > table > tbody > tr:nth-of-type(1)",
+      "note": "Step 4: Click the first finished row in the run history table"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "details:has(summary:text(\"Transcript\")) summary",
+      "note": "Step 5: Expand the Transcript collapsible section via details/summary"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "details:has(summary:text(\"Replay JSON\")) summary",
+      "note": "Step 6: Expand the Replay JSON collapsible section"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "role=link[name=\"← case cases-list\"]",
+      "note": "Step 7: Click the case cases-list link in the page header"
+    },
+    {
+      "kind": "assert",
+      "assert": "urlContains",
+      "text": "/cases/cases-list",
+      "note": "Expectation 3: Back link navigated to the case detail page"
+    },
+    {
+      "kind": "act",
+      "action": "goto",
+      "value": "/p/casepilot/runs/20260613-171734-eca729",
+      "note": "Navigate back to run detail page to verify collapsible content"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "details:has(summary:text(\"Transcript\")) summary",
+      "note": "Re-expand Transcript to verify content"
+    },
+    {
+      "kind": "act",
+      "action": "click",
+      "selector": "details:has(summary:text(\"Replay JSON\")) summary",
+      "note": "Re-expand Replay JSON to verify content"
+    },
+    {
+      "kind": "assert",
+      "assert": "textPresent",
+      "selector": "details:has(summary:text(\"Transcript\"))",
+      "text": "no transcript for run",
+      "note": "Expectation 1: Transcript section shows text content after expanding"
+    },
+    {
+      "kind": "assert",
+      "assert": "textPresent",
+      "selector": "details:has(summary:text(\"Replay JSON\"))",
+      "text": "version",
+      "note": "Expectation 2: Replay JSON section shows the replay JSON after expanding"
+    }
+  ],
+  "meta": {
+    "healCount": 0
+  }
+}

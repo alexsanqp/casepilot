@@ -1,5 +1,4 @@
 import path from 'node:path';
-import { createReadStream } from 'node:fs';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import YAML from 'yaml';
 import { z } from 'zod';
@@ -23,6 +22,7 @@ import type { ResolveContext } from './routeContext.js';
 import { registerHealRoutes } from './healRoutes.js';
 import { registerArtifactRoutes } from './artifactRoutes.js';
 import { registerFsRoutes } from './fsRoutes.js';
+import { sendFileWithRange } from './rangeStream.js';
 
 export interface ApiDeps {
   version: string;
@@ -242,7 +242,7 @@ function registerProjectScopedRoutes(app: FastifyInstance, deps: ApiDeps, base: 
     if (!videoPath || !(await fileExists(videoPath))) {
       return reply.status(404).send({ error: `no video for run "${req.params.id}"` });
     }
-    return reply.header('content-type', 'video/webm').send(createReadStream(videoPath));
+    return sendFileWithRange(req, reply, videoPath, 'video/webm');
   });
 
   app.get<{ Params: { id: string } }>(`${base}/runs/:id/video/optimized`, async (req, reply) => {
@@ -253,7 +253,7 @@ function registerProjectScopedRoutes(app: FastifyInstance, deps: ApiDeps, base: 
     if (!optimizedVideoPath || !(await fileExists(optimizedVideoPath))) {
       return reply.status(404).send({ error: `no optimized video for run "${req.params.id}"` });
     }
-    return reply.header('content-type', 'video/webm').send(createReadStream(optimizedVideoPath));
+    return sendFileWithRange(req, reply, optimizedVideoPath, 'video/webm');
   });
 
   app.get<{ Params: { id: string } }>(`${base}/runs/:id/transcript`, async (req, reply) => {

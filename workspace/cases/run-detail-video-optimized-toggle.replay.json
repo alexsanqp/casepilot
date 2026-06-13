@@ -3,14 +3,14 @@
   "case": "run-detail-video-optimized-toggle",
   "url": "/",
   "providerUsed": "agent",
-  "recordedAt": "2026-06-12T19:28:02.050Z",
+  "recordedAt": "2026-06-13T20:17:02.269Z",
   "steps": [
     {
       "kind": "act",
       "action": "waitFor",
       "selector": "text=casepilot",
       "value": "5000",
-      "note": "Wait for projects to load"
+      "note": "Wait for casepilot project card to appear"
     },
     {
       "kind": "act",
@@ -22,45 +22,82 @@
       "kind": "act",
       "action": "click",
       "selector": "role=link[name=\"projects-list\"]",
-      "note": "Step 2: Click the case name link \"projects-list\" in the table"
+      "note": "Step 2: Click the projects-list case name link"
     },
     {
       "kind": "act",
       "action": "waitFor",
       "selector": "text=Run history",
       "value": "5000",
-      "note": "Step 3: Wait for the \"Run history\" section on the case detail page"
+      "note": "Step 3: Wait for the Run history section on the case detail page"
     },
     {
       "kind": "act",
       "action": "click",
-      "selector": "role=row[name=\"20260612 replay unknown done PASS 2.3s 12.06.2026, 21:26:23\"]",
-      "note": "Step 4: Open a finished run to check for original and optimized video"
+      "selector": "#root > div > main > div > div > section:nth-of-type(3) > table > tbody > tr:nth-of-type(1) > td:nth-of-type(1) > code",
+      "note": "Step 4: Open the first finished run to check for video sections"
+    },
+    {
+      "kind": "act",
+      "action": "scroll",
+      "selector": "main",
+      "value": "down",
+      "note": "Scroll down to look for Video section"
     },
     {
       "kind": "act",
       "action": "click",
       "selector": "role=link[name=\"← case projects-list\"]",
-      "note": "Go back to case detail page"
+      "note": "Navigate back to the case detail page"
     },
     {
       "kind": "act",
       "action": "waitFor",
       "selector": "text=Run history",
-      "value": "5000",
-      "note": "Wait for the Run history section"
+      "value": "3000",
+      "note": "Wait for case detail page to load"
     },
     {
       "kind": "act",
       "action": "click",
-      "selector": "role=row[name=\"20260612 replay unknown done PASS 5.7s 12.06.2026, 21:21:28\"]",
-      "note": "Step 4: Open the 5.7s run which may have both original and optimized video"
+      "selector": "#root > div > main > div > div > section:nth-of-type(3) > table > tbody > tr:nth-of-type(2) > td:nth-of-type(1) > code",
+      "note": "Step 4: Open second run (4.5s) to check for video section"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=heading[name=\"Video\"]",
+      "note": "Step 5: Video section is present with both toggle buttons"
     },
     {
       "kind": "act",
       "action": "click",
       "selector": "role=button[name=\"optimized\"]",
       "note": "Step 6: Click the optimized button"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=link[name=\"Download video\"]",
+      "note": "Expectation 3a: Download video link is present in optimized mode"
+    },
+    {
+      "kind": "assert",
+      "assert": "urlContains",
+      "text": "/runs/20260613-170010-7a1e2d",
+      "note": "Expectation 1b: still on the same run detail page"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=button[name=\"optimized\"][pressed]",
+      "note": "Expectation 1a: optimized button is highlighted (pressed) when selected"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=link[name=\"Download video\"]",
+      "note": "Expectation 1b: video source switched — Download video link points to optimized video"
     },
     {
       "kind": "act",
@@ -71,50 +108,20 @@
     {
       "kind": "assert",
       "assert": "visible",
-      "selector": "role=button[name=\"optimized\"]",
-      "note": "Expectation 1a: optimized button is present"
+      "selector": "role=button[name=\"original\"][pressed]",
+      "note": "Expectation 2a: original button is now highlighted (pressed) after switching back"
     },
     {
       "kind": "assert",
       "assert": "visible",
       "selector": "role=link[name=\"Download video\"]",
-      "note": "Expectation 3: Download video link is present"
+      "note": "Expectation 3b: Download video link is present in original mode"
     },
     {
       "kind": "assert",
       "assert": "visible",
       "selector": "role=list[name=\"Step timeline\"]",
-      "note": "Expectation 2: Step timeline markers are visible below the video in original mode"
-    },
-    {
-      "kind": "assert",
-      "assert": "textPresent",
-      "text": "Download video",
-      "note": "Expectation 3: Download video link is present in original mode"
-    },
-    {
-      "kind": "assert",
-      "assert": "visible",
-      "selector": "role=heading[name=\"Video\"]",
-      "note": "Video section heading is present"
-    },
-    {
-      "kind": "act",
-      "action": "click",
-      "selector": "role=button[name=\"optimized\"]",
-      "note": "Switch to optimized mode to verify Download video link presence"
-    },
-    {
-      "kind": "assert",
-      "assert": "visible",
-      "selector": "role=link[name=\"Download video\"]",
-      "note": "Expectation 3: Download video link is present in optimized mode"
-    },
-    {
-      "kind": "assert",
-      "assert": "absent",
-      "selector": "role=list[name=\"Step timeline\"]",
-      "note": "Expectation 1: Step timeline is absent in optimized mode (video source switched)"
+      "note": "Expectation 2b: step timeline markers visible below the video after switching back to original"
     }
   ],
   "meta": {

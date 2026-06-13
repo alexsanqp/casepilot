@@ -3,19 +3,19 @@
   "case": "case-editor-create-and-delete",
   "url": "/",
   "providerUsed": "agent",
-  "recordedAt": "2026-06-12T18:39:25.597Z",
+  "recordedAt": "2026-06-13T19:25:17.805Z",
   "steps": [
     {
       "kind": "act",
       "action": "click",
       "selector": "role=link[name=\"demo-workspace\"]",
-      "note": "Step 1: Click the demo-workspace project name on its project card"
+      "note": "Step 1: Click the demo-workspace project name"
     },
     {
       "kind": "act",
       "action": "click",
       "selector": "role=link[name=\"New case\"]",
-      "note": "Step 2: Click the New case button in the Cases page header"
+      "note": "Step 2: Click the New case button"
     },
     {
       "kind": "act",
@@ -28,7 +28,13 @@
       "kind": "assert",
       "assert": "textPresent",
       "text": "name: my-case",
-      "note": "Step 5: Verify the Spec YAML textarea is pre-filled with a template starting with name: my-case"
+      "note": "Step 5: Spec YAML textarea is pre-filled with template starting with name: my-case"
+    },
+    {
+      "kind": "assert",
+      "assert": "visible",
+      "selector": "role=heading[name=\"New case\"]",
+      "note": "Step 3: New case heading is visible"
     },
     {
       "kind": "act",
@@ -40,25 +46,25 @@
       "kind": "assert",
       "assert": "visible",
       "selector": "role=heading[name=\"selftest-editor-temp\"]",
-      "note": "Expectation 1a: After Save, heading selftest-editor-temp is visible"
+      "note": "After Save: detail page heading selftest-editor-temp is visible"
     },
     {
       "kind": "assert",
       "assert": "visible",
       "selector": "role=heading[name=\"Definition\"]",
-      "note": "Expectation 1b: Definition section is visible"
+      "note": "After Save: Definition section is visible"
     },
     {
       "kind": "assert",
       "assert": "visible",
       "selector": "role=heading[name=\"Replay\"]",
-      "note": "Expectation 1c: Replay section is visible"
+      "note": "After Save: Replay section is visible"
     },
     {
       "kind": "assert",
       "assert": "visible",
       "selector": "role=heading[name=\"Run history\"]",
-      "note": "Expectation 1d: Run history section is visible"
+      "note": "After Save: Run history section is visible"
     },
     {
       "kind": "act",
@@ -68,21 +74,27 @@
     },
     {
       "kind": "assert",
+      "assert": "absent",
+      "selector": "role=cell[name=\"selftest-editor-temp\"]",
+      "note": "After Delete: selftest-editor-temp row is no longer in the cases table"
+    },
+    {
+      "kind": "assert",
+      "assert": "textPresent",
+      "text": "example",
+      "note": "After Delete: the example row is still present in the cases table"
+    },
+    {
+      "kind": "assert",
       "assert": "visible",
       "selector": "role=table",
-      "note": "Expectation 2a: After Delete, cases table is visible"
-    },
-    {
-      "kind": "assert",
-      "assert": "absent",
-      "selector": "role=link[name=\"selftest-editor-temp\"]",
-      "note": "Expectation 2b: selftest-editor-temp row is no longer in the table"
+      "note": "After Delete: the cases table is visible"
     },
     {
       "kind": "assert",
       "assert": "visible",
-      "selector": "role=link[name=\"example\"]",
-      "note": "Expectation 3: The example row is still present"
+      "selector": "role=cell[name=\"example\"]",
+      "note": "After Delete: the example row is still present in the table"
     }
   ],
   "meta": {

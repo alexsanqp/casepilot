@@ -3,69 +3,62 @@
   "case": "heals-pending-list",
   "url": "/",
   "providerUsed": "agent",
-  "recordedAt": "2026-06-12T18:56:34.284Z",
+  "recordedAt": "2026-06-13T18:01:45.693Z",
   "steps": [
-    {
-      "kind": "act",
-      "action": "waitFor",
-      "selector": "text=casepilot",
-      "value": "5000",
-      "note": "Wait for projects to load"
-    },
     {
       "kind": "act",
       "action": "click",
       "selector": "role=link[name=\"casepilot\"]",
-      "note": "Step 1: Click the casepilot project name on its project card"
+      "note": "Click the casepilot project name on its project card"
     },
     {
       "kind": "act",
       "action": "click",
       "selector": "role=link[name=\"Heals 2\"]",
-      "note": "Step 3: Click the Heals link in the sidebar navigation"
+      "note": "Click the Heals link in the sidebar navigation"
     },
     {
       "kind": "act",
       "action": "waitFor",
       "selector": "role=heading[name=\"Heals\"]",
       "value": "5000",
-      "note": "Step 4: Wait for the Heals heading to appear"
+      "note": "Wait for the Heals heading to appear"
     },
     {
       "kind": "assert",
       "assert": "visible",
       "selector": "role=heading[name=\"Heals\"]",
-      "note": "Heals heading is visible"
+      "note": "Heals heading is visible on the page"
     },
     {
       "kind": "assert",
       "assert": "textPresent",
       "text": "projects-list",
-      "note": "Expectation 1: heal card shows case name"
-    },
-    {
-      "kind": "assert",
-      "assert": "textPresent",
-      "text": "step #1",
-      "note": "Expectation 1: first heal card shows step label"
+      "note": "Each heal card shows the case name (projects-list)"
     },
     {
       "kind": "assert",
       "assert": "textPresent",
       "text": "step #2",
-      "note": "Expectation 1: second heal card shows step label"
+      "note": "First heal card shows step #2"
+    },
+    {
+      "kind": "assert",
+      "assert": "textPresent",
+      "text": "step #1",
+      "note": "Second heal card shows step #1"
     },
     {
       "kind": "assert",
       "assert": "absent",
-      "selector": "text=No pending heals.",
-      "note": "Expectation 2: no empty-state message since heals exist"
+      "selector": "text=\"No pending heals.\"",
+      "note": "No pending heals message is absent since heals exist"
     },
     {
       "kind": "assert",
       "assert": "visible",
       "selector": "role=link[name=\"Heals 2\"]",
-      "note": "Expectation 3: sidebar Heals badge shows 2, matching the 2 pending heal cards"
+      "note": "Sidebar Heals badge shows count 2, matching the 2 pending heal cards"
     }
   ],
   "meta": {
