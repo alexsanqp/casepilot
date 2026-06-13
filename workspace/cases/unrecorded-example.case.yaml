@@ -1,0 +1,9 @@
+name: unrecorded-example
+url: /
+# Intentionally left unrecorded (no replay.json). It is a fixture so the
+# dashboard always has one case with a disabled Run button; run-button-states
+# asserts the "No replay recorded yet" disabled state against it.
+steps:
+  - This case is a fixture and is never recorded
+expect:
+  - Its Run button stays disabled because it has no recorded replay

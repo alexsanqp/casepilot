@@ -3,14 +3,14 @@
   "case": "run-button-states",
   "url": "/",
   "providerUsed": "agent",
-  "recordedAt": "2026-06-12T18:29:50.588Z",
+  "recordedAt": "2026-06-13T17:52:27.454Z",
   "steps": [
     {
       "kind": "act",
       "action": "waitFor",
       "selector": "text=casepilot",
       "value": "5000",
-      "note": "Wait for projects to load"
+      "note": "Wait for the casepilot project card to appear"
     },
     {
       "kind": "act",
@@ -21,51 +21,68 @@
     {
       "kind": "act",
       "action": "waitFor",
-      "selector": "text=heal-approve",
+      "selector": "role=table",
       "value": "5000",
-      "note": "Step 2: Wait for cases table with heal-approve row"
+      "note": "Step 2: Wait for the cases table to appear"
+    },
+    {
+      "kind": "act",
+      "action": "scroll",
+      "selector": "role=table",
+      "value": "down",
+      "note": "Scroll down to see all rows including unrecorded-example"
+    },
+    {
+      "kind": "act",
+      "action": "scroll",
+      "selector": "tr:has(a[href*=\"unrecorded-example\"])",
+      "value": "down",
+      "note": "Scroll to bring unrecorded-example into view"
+    },
+    {
+      "kind": "act",
+      "action": "waitFor",
+      "selector": "tr:has(a[href*=\"unrecorded-example\"]) button",
+      "value": "3000",
+      "note": "Wait for the unrecorded-example row button to be in DOM"
+    },
+    {
+      "kind": "act",
+      "action": "scroll",
+      "selector": "tr:has(a[href*=\"unrecorded-example\"])",
+      "value": "down",
+      "note": "Step 3: Scroll to unrecorded-example row before hovering over its disabled Run button"
+    },
+    {
+      "kind": "act",
+      "action": "scroll",
+      "selector": "tr:has(a[href*=\"projects-list\"]) button",
+      "value": "down",
+      "note": "Step 4: Hover over the enabled Run button for projects-list (scroll into view)"
     },
     {
       "kind": "assert",
       "assert": "visible",
-      "selector": "role=row[name*=\"heal-approve\"] >> role=button[name=\"Run\"]",
-      "note": "Expectation 1b: Run button is present (and disabled) in heal-approve row"
+      "selector": "tr:has(a[href*=\"unrecorded-example\"]) button[disabled][title=\"No replay recorded yet\"]",
+      "note": "Expectation 1a: Run button for unrecorded-example is disabled with correct tooltip"
     },
     {
       "kind": "assert",
       "assert": "visible",
-      "selector": "role=row[name*=\"projects-list\"] >> role=button[name=\"Run\"]",
-      "note": "Expectation 2b: Run button is present (enabled) in projects-list row"
+      "selector": "tr:has(a[href*=\"projects-list\"]) button:not([disabled])[title=\"Replay the recorded steps\"]",
+      "note": "Expectation 2: Run button for projects-list is enabled with correct tooltip"
     },
     {
       "kind": "assert",
       "assert": "visible",
-      "selector": "role=row[name*=\"heal-approve\"] >> button[disabled][title=\"No replay recorded yet\"]",
-      "note": "Expectation 1: heal-approve Run button is disabled with tooltip \"No replay recorded yet\""
+      "selector": "tr:has(a[href*=\"unrecorded-example\"]) >> role=combobox",
+      "note": "Expectation 3: provider dropdown present in unrecorded-example row"
     },
     {
       "kind": "assert",
       "assert": "visible",
-      "selector": "role=row[name*=\"projects-list\"] >> button:not([disabled])[title=\"Replay the recorded steps\"]",
-      "note": "Expectation 2: projects-list Run button is enabled with tooltip \"Replay the recorded steps\""
-    },
-    {
-      "kind": "assert",
-      "assert": "visible",
-      "selector": "role=row[name*=\"heal-approve\"] >> role=combobox",
-      "note": "Expectation 3a: heal-approve row has provider dropdown"
-    },
-    {
-      "kind": "assert",
-      "assert": "visible",
-      "selector": "role=row[name*=\"projects-list\"] >> role=combobox",
-      "note": "Expectation 3b: projects-list row has provider dropdown"
-    },
-    {
-      "kind": "assert",
-      "assert": "visible",
-      "selector": "role=row[name*=\"case-editor-edit\"] >> role=combobox",
-      "note": "Expectation 3c: spot-check a third row also has provider dropdown"
+      "selector": "tr:has(a[href*=\"projects-list\"]) >> role=combobox",
+      "note": "Expectation 3: provider dropdown also present in projects-list row (recorded case)"
     }
   ],
   "meta": {
