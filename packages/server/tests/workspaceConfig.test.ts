@@ -4,7 +4,9 @@ import { mkdtemp, writeFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 import {
   isAbsoluteHttpUrl,
+  readWorkspaceAuthRefresh,
   readWorkspaceBaseUrl,
+  readWorkspaceDefaultAuth,
   readWorkspaceHealPolicy,
   readWorkspaceVideoConfig,
 } from '../src/workspaceConfig.js';
@@ -76,5 +78,50 @@ describe('readWorkspaceVideoConfig', () => {
   it('rejects non-boolean values with an actionable error', async () => {
     const workspace = await workspaceWith('providers: []\nvideo: yes please\n');
     await expect(readWorkspaceVideoConfig(workspace)).rejects.toThrow(/video.*boolean/);
+  });
+});
+
+describe('readWorkspaceDefaultAuth', () => {
+  it('returns the configured defaultAuth profile', async () => {
+    const workspace = await workspaceWith('providers: []\ndefaultAuth: main\n');
+    await expect(readWorkspaceDefaultAuth(workspace)).resolves.toBe('main');
+  });
+
+  it('returns undefined when the key or the config file is missing', async () => {
+    await expect(readWorkspaceDefaultAuth(await workspaceWith('providers: []\n'))).resolves.toBeUndefined();
+    await expect(readWorkspaceDefaultAuth(await workspaceWith())).resolves.toBeUndefined();
+  });
+
+  it('rejects a non-string defaultAuth with an actionable error', async () => {
+    const workspace = await workspaceWith('providers: []\ndefaultAuth: 123\n');
+    await expect(readWorkspaceDefaultAuth(workspace)).rejects.toThrow(/defaultAuth.*string/);
+  });
+
+  it('does not disturb other reads', async () => {
+    const workspace = await workspaceWith('providers: []\ndefaultAuth: main\nhealPolicy: auto\n');
+    await expect(readWorkspaceHealPolicy(workspace)).resolves.toBe('auto');
+    await expect(readWorkspaceDefaultAuth(workspace)).resolves.toBe('main');
+  });
+});
+
+describe('readWorkspaceAuthRefresh', () => {
+  it('defaults to manual when the key or the config file is missing', async () => {
+    await expect(readWorkspaceAuthRefresh(await workspaceWith('providers: []\n'))).resolves.toBe('manual');
+    await expect(readWorkspaceAuthRefresh(await workspaceWith())).resolves.toBe('manual');
+  });
+
+  it('reads an explicit auto value', async () => {
+    const workspace = await workspaceWith('providers: []\nauthRefresh: auto\n');
+    await expect(readWorkspaceAuthRefresh(workspace)).resolves.toBe('auto');
+  });
+
+  it('reads an explicit manual value', async () => {
+    const workspace = await workspaceWith('providers: []\nauthRefresh: manual\n');
+    await expect(readWorkspaceAuthRefresh(workspace)).resolves.toBe('manual');
+  });
+
+  it('rejects an unknown authRefresh value with an actionable error', async () => {
+    const workspace = await workspaceWith('providers: []\nauthRefresh: sometimes\n');
+    await expect(readWorkspaceAuthRefresh(workspace)).rejects.toThrow(/authRefresh.*manual.*auto/);
   });
 });
