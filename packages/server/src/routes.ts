@@ -14,6 +14,7 @@ import {
   isSafeName,
   listCases,
   suiteDirPath,
+  suitesDir,
 } from './workspace.js';
 import { isAbsoluteHttpUrl } from './workspaceConfig.js';
 import type { ProviderRegistryLike } from './providersLoader.js';
@@ -279,10 +280,21 @@ function registerProjectScopedRoutes(app: FastifyInstance, deps: ApiDeps, base: 
     app.get<{ Params: { suiteId: string } }>(`${base}/suites/runs/:suiteId/${kind}`, async (req, reply) => {
       const ctx = await resolve(req, reply);
       if (!ctx) return reply;
+      const { suiteId } = req.params;
+      // suiteId is interpolated into a filesystem path below. Only serve reports
+      // for suites the registry knows, which blocks path traversal (an attacker
+      // id is never a registry key) and keeps unknown ids a clean 404.
+      if (!ctx.suiteRegistry.get(suiteId)) {
+        return reply.status(404).send({ error: `suite "${suiteId}" not found` });
+      }
       const file = path.join(
-        suiteDirPath(ctx.workspace, req.params.suiteId),
+        suiteDirPath(ctx.workspace, suiteId),
         kind === 'junit' ? 'junit.xml' : 'suite.json',
       );
+      // Defense in depth: never read outside the workspace suites dir.
+      if (!path.resolve(file).startsWith(path.resolve(suitesDir(ctx.workspace)) + path.sep)) {
+        return reply.status(404).send({ error: `suite "${suiteId}" not found` });
+      }
       try {
         const body = await readFile(file, 'utf8');
         return reply.header('content-type', kind === 'junit' ? 'application/xml' : 'application/json').send(body);

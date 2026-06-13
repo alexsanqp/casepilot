@@ -168,4 +168,15 @@ describe('suite run REST routes', () => {
     expect((await app.inject({ method: 'GET', url: '/api/suites/runs/ghost' })).statusCode).toBe(404);
     expect((await app.inject({ method: 'GET', url: '/api/suites/runs/ghost/junit' })).statusCode).toBe(404);
   });
+
+  it('does not serve report files for a traversal or unknown suiteId', async () => {
+    const { app } = await setup(['login']);
+    for (const bad of ['..', 'suite-..', 'not-a-suite']) {
+      for (const kind of ['junit', 'json']) {
+        const res = await app.inject({ method: 'GET', url: `/api/suites/runs/${bad}/${kind}` });
+        expect(res.statusCode).toBe(404);
+        expect(res.body).not.toContain('<testsuite');
+      }
+    }
+  });
 });
