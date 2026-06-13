@@ -72,6 +72,8 @@ The workspace can set defaults in `casepilot.config.yaml`:
 
 If the effective profile is `none`, the case starts with a fresh browser context. Otherwise its `storageState` is loaded at launch. A case with `saveAuth` writes its session to that profile only on a passing verdict.
 
+Only **one** case should declare `saveAuth: <profile>` per profile — the single producer that logs in and saves that session. If several cases share the same `saveAuth: <profile>`, `authRefresh: auto` picks one arbitrarily (the first match in case-name order) when it auto-refreshes a missing profile, so keep producers unique per profile.
+
 Profiles live at `<workspace>/auth/<profile>.json`. The directory holds live session **secrets** and is git-ignored: `casepilot init` adds `auth/` to the workspace `.gitignore`, and the first profile save also writes `<workspace>/auth/.gitignore` (`*`) so the secrets stay out of version control even if the root file is removed.
 
 ### Relative urls and baseUrl
