@@ -1,0 +1,36 @@
+# Docker Compose / Podman Compose configuration for CasePilot REST server.
+#
+# Usage:
+#   podman compose up                    # Start the server
+#   podman compose down                  # Stop and remove containers
+#   podman compose logs -f casepilot     # Stream logs
+#
+# The REST API server listens on port 7700. Inside the container it binds
+# 0.0.0.0 (via `serve --host 0.0.0.0`) so the published port can reach it; the
+# default `serve` (no --host) binds 127.0.0.1, which a port mapping CANNOT
+# reach. The port is published ONLY to the host loopback (127.0.0.1:7700)
+# because the REST API is UNAUTHENTICATED and exposes a filesystem-listing
+# route — never publish it on an untrusted network. See docs/docker.md.
+#
+# Note: The React dashboard (Vite dev server on :7701) is a separate application
+# not included in this container. The server provides only the REST API, and the
+# dashboard is typically developed/served separately or built and deployed elsewhere.
+
+services:
+  casepilot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: casepilot-server
+    # Override the entrypoint to run the serve command. --host 0.0.0.0 is
+    # REQUIRED so the published port can reach the listener inside the container.
+    command: ["serve", "--workspace", "/work", "--host", "0.0.0.0"]
+    ports:
+      # Publish only to the host loopback; the API is unauthenticated.
+      - "127.0.0.1:7700:7700"
+    volumes:
+      # Mount a workspace directory into the container at /work.
+      # The workspace must contain casepilot.config.yaml, cases/, etc.
+      # Ensure the mounted directory is writable by the pwuser inside the container.
+      - "./workspace:/work"
+    restart: unless-stopped

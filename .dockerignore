@@ -1,0 +1,46 @@
+# Build context exclusions for Docker/Podman builds
+# Reduces image size and build time
+
+# Node modules (will be installed in container)
+node_modules
+**/node_modules
+
+# Built artifacts (will be rebuilt in container)
+dist
+**/dist
+
+# Git and version control
+.git
+.gitignore
+
+# User workspaces and test artifacts (must be mounted at runtime, not baked in)
+workspace
+workspace/**
+demo-workspace
+demo-workspace/**
+**/runs
+**/suites
+**/auth
+**/cases/*.replay.json
+**/heals.json
+
+# Logs and temp files
+*.log
+logs
+tmp
+*.tmp
+
+# Editor configurations
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Documentation (superpowers is git-excluded anyway)
+docs/superpowers
+
+# Development and test coverage
+coverage
+.nyc_output
