@@ -40,6 +40,21 @@ export function newRunId(): string {
   return `${ts}-${randomBytes(3).toString('hex')}`;
 }
 
+export function authDir(workspace: string): string {
+  return path.join(workspace, 'auth');
+}
+
+/**
+ * Path to an auth profile's storageState file. Validates the profile name via
+ * isSafeName so a crafted name (e.g. "../secrets") can never escape `auth/`.
+ */
+export function authProfilePath(workspace: string, profile: string): string {
+  if (!isSafeName(profile)) {
+    throw new Error(`invalid auth profile name "${profile}"`);
+  }
+  return path.join(authDir(workspace), `${profile}.json`);
+}
+
 export function suitesDir(workspace: string): string {
   return path.join(workspace, 'suites');
 }
