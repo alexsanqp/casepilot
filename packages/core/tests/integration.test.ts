@@ -1,4 +1,5 @@
 import { access, mkdtemp, readFile, rm, stat } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -478,6 +479,51 @@ describe('step timing offsets and screenshots', () => {
     for (const name of result.artifacts.screenshots) {
       await expect(access(path.join(artifactsDir, 'screenshots', name))).resolves.toBeUndefined();
     }
+  });
+});
+
+describe('auth storageState wiring (login-once)', () => {
+  it('replay saves storageState on a passing verdict', async () => {
+    const artifactsDir = dirFor('auth-replay-pass');
+    const saveStorageStatePath = path.join(artifactsDir, 'auth', 'main.json');
+    const result = await replayCase(structuredClone(recordedReplay), { artifactsDir, saveStorageStatePath });
+    expect(result.verdict).toBe('passed');
+    expect(existsSync(saveStorageStatePath)).toBe(true);
+    const parsed = JSON.parse(await readFile(saveStorageStatePath, 'utf8')) as {
+      cookies: unknown[];
+      origins: unknown[];
+    };
+    expect(Array.isArray(parsed.cookies)).toBe(true);
+    expect(Array.isArray(parsed.origins)).toBe(true);
+  });
+
+  it('replay does NOT save storageState on a failing verdict', async () => {
+    const artifactsDir = dirFor('auth-replay-fail');
+    const saveStorageStatePath = path.join(artifactsDir, 'auth', 'main.json');
+    const corrupted = structuredClone(recordedReplay);
+    corrupted.steps[0]!.selector = 'role=button[name="Sove"]';
+    const result = await replayCase(corrupted, { artifactsDir, saveStorageStatePath });
+    expect(result.verdict).toBe('failed');
+    expect(existsSync(saveStorageStatePath)).toBe(false);
+  });
+
+  it('record copies useAuth/saveAuth into the produced replay and saves storageState on pass', async () => {
+    const artifactsDir = dirFor('auth-record');
+    const saveStorageStatePath = path.join(artifactsDir, 'auth', 'main.json');
+    const authCase: CaseSpec = { ...caseSpec, useAuth: 'main', saveAuth: 'main' };
+    const { result, replay } = await recordCase(authCase, passingProvider(), {
+      artifactsDir,
+      saveStorageStatePath,
+    });
+    expect(result.verdict).toBe('passed');
+    expect(replay.useAuth).toBe('main');
+    expect(replay.saveAuth).toBe('main');
+    expect(existsSync(saveStorageStatePath)).toBe(true);
+
+    // the carried fields survive a save/load round-trip of the replay file
+    const loaded = await loadReplayFile(result.artifacts.replayPath!);
+    expect(loaded.useAuth).toBe('main');
+    expect(loaded.saveAuth).toBe('main');
   });
 });
 
