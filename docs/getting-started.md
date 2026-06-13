@@ -103,6 +103,48 @@ No LLM is involved unless a step fails and healing kicks in (a chat provider mus
 
 By default a successful heal does not modify your recorded replay: it is queued in the workspace `heals.json` for review. Inspect and resolve the queue with `casepilot heals list` / `approve` / `reject`, or from the dashboard's Heals page. Set `healPolicy: auto` in `casepilot.config.yaml` (or pass `--heal-policy auto`) to apply heals immediately.
 
+## Log in once
+
+Most cases need a logged-in page, but driving the login form in every recording is expensive (the LLM burns turns on it) and flaky (login is the most fragile flow). Instead, record the login **once** and let other cases reuse its session.
+
+Add `saveAuth` to your login case so a passing recording saves its session as a named profile:
+
+```yaml
+# cases/login.case.yaml
+name: login
+url: https://app.example.com/login
+saveAuth: main            # on pass, save the session as the "main" profile
+steps:
+  - Fill the username field with "demo"
+  - Fill the password field with "demo123"
+  - Click the "Sign in" button
+expect:
+  - The page url contains "/dashboard"
+```
+
+Then any case that needs to be logged in sets `useAuth` and skips the login UI entirely:
+
+```yaml
+# cases/edit-profile.case.yaml
+name: edit-profile
+url: https://app.example.com/settings/profile
+useAuth: main             # start already authenticated; no login steps
+steps:
+  - Fill the display name field with "Demo User"
+  - Click the "Save" button
+expect:
+  - The text "Profile updated" is visible
+```
+
+Record the producer first, then the consumer:
+
+```bash
+npx casepilot record login         # logs in, writes auth/main.json on pass
+npx casepilot record edit-profile  # starts from auth/main.json, goes straight to /settings/profile
+```
+
+`record` and `run` honor auth automatically — there is no extra flag. The saved profile lives at `auth/main.json` and is git-ignored (it holds live session cookies). To make every case authenticated by default without repeating `useAuth`, set `defaultAuth: main` in `casepilot.config.yaml`; an individual case can still opt out with `useAuth: none`. See [case-format.md](case-format.md#authenticated-cases-useauth--saveauth) for the full resolution rule and [cli.md](cli.md#casepilot-run-case) for how a missing profile is handled.
+
 ## Export
 
 ```bash

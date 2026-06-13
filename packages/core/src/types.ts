@@ -19,6 +19,10 @@ export interface CaseSpec {
   url: string;
   steps: CaseStep[];
   expect: string[];
+  /** Load this auth profile's storageState so the case starts authenticated. `none` opts out. */
+  useAuth?: string;
+  /** This producer case logs in and saves its storageState under this profile on a passing verdict. */
+  saveAuth?: string;
 }
 
 export type ActAction = 'click' | 'fill' | 'press' | 'select' | 'goto' | 'scroll' | 'waitFor';
@@ -54,6 +58,10 @@ export interface ReplayFile {
   meta: {
     healCount: number;
   };
+  /** Carried from the case spec so replay is self-contained: load this auth profile at launch. */
+  useAuth?: string;
+  /** Carried from the case spec: save this producer's storageState under this profile on pass. */
+  saveAuth?: string;
 }
 
 export interface StepResult {
@@ -130,6 +138,10 @@ export interface RunOptions {
    * last). Default off. Complements slowMo for natural replay pacing.
    */
   stepDelayMs?: number;
+  /** Load this Playwright storageState JSON into the browser context at launch. */
+  storageStatePath?: string;
+  /** After a passing verdict, write the context storageState here. */
+  saveStorageStatePath?: string;
 }
 
 export interface ToolDef {

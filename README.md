@@ -60,6 +60,7 @@ npx casepilot export login
 | --- | --- |
 | Natural-language cases | `cases/<name>.case.yaml` with `name`, `url`, `steps`, `expect`; steps may carry per-step expectations (`{do, expect}`) |
 | Host-portable cases | relative `url: /login` resolved against `--base-url` > `CASEPILOT_BASE_URL` > workspace `baseUrl:` |
+| Login once | a case with `saveAuth` saves the session; cases with `useAuth` (or workspace `defaultAuth`) start authenticated, skipping the login UI |
 | Record once with any LLM | `casepilot record <case>` via chat API or agent CLI |
 | Deterministic free replays | `casepilot run <case>` replays `replay.json`, no LLM calls |
 | Suite runs + CI reports | `casepilot run-all` replays every recorded case into one verdict and writes JUnit XML + JSON |

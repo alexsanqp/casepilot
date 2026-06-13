@@ -163,6 +163,12 @@ export async function replayCase(
     if (persistedHeals) {
       await saveReplayFile(replayPath, replay);
     }
+
+    // Save the authenticated session only on a clean pass, before the context
+    // closes. Never persist a profile from a failed run (it may be half-logged-in).
+    if (verdict === 'passed' && options.saveStorageStatePath) {
+      await session.saveStorageState(options.saveStorageStatePath);
+    }
   } finally {
     ({ videoPath } = await session.close());
   }

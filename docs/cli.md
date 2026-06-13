@@ -69,6 +69,19 @@ Video defaults: both the run video and its idle-trimmed copy are produced by def
 
 For `record` and `run`, the effective base URL is resolved as: `--base-url` flag > `CASEPILOT_BASE_URL` environment variable > `baseUrl:` key in `casepilot.config.yaml` > none. Both the flag and the env var must be absolute http(s) URLs.
 
+### Authentication (useAuth / saveAuth)
+
+`record` and `run` honor auth **automatically** — there is no new flag. If the case (or its replay) carries `useAuth`, or the workspace sets `defaultAuth:`, the run loads that profile's session at launch so it starts authenticated; a case with `saveAuth` writes its session to the named profile on a passing verdict. Profiles live at `<workspace>/auth/<profile>.json` and are git-ignored secrets. See [case-format.md](case-format.md#authenticated-cases-useauth--saveauth) for the fields and the effective-useAuth resolution rule.
+
+When a run needs a profile that does not exist yet, the workspace `authRefresh:` key decides what happens:
+
+- `manual` (the default) fails fast with an actionable error: `auth profile "<p>" not found; record or run the login case (saveAuth: <p>) first`.
+- `auto` finds the producer case (the one whose recorded replay has `saveAuth: <p>`), replays it to regenerate the profile, then continues with the original run. If no producer exists, it falls back to the same `manual` error. Keep exactly one producer per profile: if several cases declare `saveAuth: <p>`, `auto` picks the first match in case-name order arbitrarily (see [case-format.md](case-format.md#authenticated-cases-useauth--saveauth)).
+
+**MVP limit:** only an *absent* profile is detected. An expired-but-present profile is **not** auto-detected — the loaded session is simply stale, so the case surfaces it as a normal step/assertion failure. Refresh it by re-running the producer (the case with `saveAuth: <p>`).
+
+> Scope note: auth `storageState` is applied on the **chat-provider record path** and on **replay** (both flow through the library `RunOptions`). Recording via an **agent CLI** (`claude-code`/`codex`) does **not** yet support auth — the browser-tools bridge has no storage-state path, so `useAuth` is never injected (the session is **not** loaded) and `saveAuth` saves **no profile** (nothing is written). Rather than silently no-op'ing, an agent-CLI record of a case that declares `useAuth`/`saveAuth` now **errors fast** with an actionable message. Record such a case with a chat provider instead, or remove `useAuth`/`saveAuth`; replay continues to honor both. Agent-record storageState injection is a documented follow-up.
+
 ## casepilot run-all [cases...]
 
 Replay a whole suite of recorded cases into one aggregate verdict. With no arguments it runs every recorded case in the workspace; pass `[cases...]` to run only those (by name). Each case is replayed exactly like `casepilot run`, so there is no LLM cost unless healing triggers.

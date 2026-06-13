@@ -27,6 +27,14 @@ expect:
   - The page url contains "iana.org"
 `;
 
+// Ignore generated run/suite artifacts and the auth/ secrets dir at the repo
+// root. (auth/ is also self-protected by an auth/.gitignore written on first
+// profile save, in case this root file is removed.)
+const GITIGNORE_TEMPLATE = `runs/
+suites/
+auth/
+`;
+
 export const CONFIG_FILE_NAME = 'casepilot.config.yaml';
 
 export interface ScaffoldOutcome {
@@ -50,6 +58,7 @@ export async function scaffoldWorkspace(workspace: string): Promise<ScaffoldOutc
 
   const files: Array<[string, string]> = [
     [path.join(workspace, CONFIG_FILE_NAME), CONFIG_TEMPLATE],
+    [path.join(workspace, '.gitignore'), GITIGNORE_TEMPLATE],
     [path.join(workspace, 'cases', 'example.case.yaml'), EXAMPLE_CASE],
   ];
   for (const [filePath, content] of files) {

@@ -25,13 +25,25 @@ import type {
 import { buildHealer } from './healer.js';
 import { addHeal } from './heals.js';
 import {
+  readWorkspaceAuthRefresh,
   readWorkspaceBaseUrl,
+  readWorkspaceDefaultAuth,
   readWorkspaceHealPolicy,
   readWorkspaceVideoConfig,
   type HealPolicy,
 } from './workspaceConfig.js';
 import { loadWorkspaceRegistry, type ProviderRegistryLike } from './providersLoader.js';
-import { assertCaseName, caseFilePath, caseReplayPath, fileExists } from './workspace.js';
+import {
+  assertCaseName,
+  authDir,
+  authProfilePath,
+  caseFilePath,
+  caseReplayPath,
+  fileExists,
+  listCases,
+  newRunId,
+  runDirPath,
+} from './workspace.js';
 
 export interface RunRequest {
   workspace: string;
@@ -295,6 +307,116 @@ async function buildReplayHooks(req: RunRequest): Promise<ReplayHooks> {
   };
 }
 
+/** The per-case auth intent, read from a CaseSpec (record) or a ReplayFile (replay). */
+export interface CaseAuth {
+  useAuth?: string;
+  saveAuth?: string;
+}
+
+/** Resolved Playwright storageState paths to set on RunOptions. */
+export interface ResolvedAuth {
+  storageStatePath?: string;
+  saveStorageStatePath?: string;
+}
+
+const GITIGNORE_ALL = '*\n';
+
+/**
+ * Scan the workspace cases for the producer that saves the given profile: a
+ * case whose recorded replay carries `saveAuth === profile`. Returns its name
+ * or undefined when none exists. Broken/unparsable replays are skipped.
+ */
+async function findAuthProducer(workspace: string, profile: string): Promise<string | undefined> {
+  for (const summary of await listCases(workspace)) {
+    if (!summary.hasReplay) continue;
+    try {
+      const replay = await loadReplayFile(caseReplayPath(workspace, summary.name));
+      if (replay.saveAuth === profile) return summary.name;
+    } catch {
+      // skip cases whose replay cannot be read/parsed
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Auto-refresh a missing profile by finding and replaying its producer case.
+ * The producer has `saveAuth` (⇒ effective useAuth = 'none' ⇒ no storageStatePath
+ * ⇒ no recursive refresh), so this cannot recurse. Throws the actionable manual
+ * error when no producer exists or the profile is still missing afterwards.
+ */
+async function ensureAuthProfile(workspace: string, profile: string, deps: RunnerDeps): Promise<void> {
+  const producer = await findAuthProducer(workspace, profile);
+  if (producer !== undefined) {
+    try {
+      await executeRun(
+        { workspace, caseName: producer, mode: 'replay', runDir: runDirPath(workspace, newRunId()) },
+        deps,
+      );
+    } catch (err) {
+      throw new Error(
+        `auto-refresh of auth profile "${profile}" failed while running producer case "${producer}": ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+  if (!(await fileExists(authProfilePath(workspace, profile)))) {
+    throw missingProfileError(profile);
+  }
+}
+
+function missingProfileError(profile: string): Error {
+  return new Error(
+    `auth profile "${profile}" not found; record or run the login case (saveAuth: ${profile}) first`,
+  );
+}
+
+/**
+ * Resolve a case's useAuth/saveAuth into Playwright storageState paths.
+ *
+ * Effective profile = explicit `useAuth` ?? (a producer with `saveAuth` ⇒ 'none')
+ * ?? workspace `defaultAuth` ?? 'none'. A non-'none' profile sets
+ * `storageStatePath`; `saveAuth` sets `saveStorageStatePath` (and protects the
+ * auth dir with a `.gitignore`). When the load profile is missing, the workspace
+ * `authRefresh` decides: `manual` throws an actionable error; `auto` re-runs the
+ * producer case to regenerate it.
+ */
+export async function resolveAuthOptions(
+  workspace: string,
+  caseAuth: CaseAuth,
+  deps: RunnerDeps,
+): Promise<ResolvedAuth> {
+  const resolved: ResolvedAuth = {};
+
+  if (caseAuth.saveAuth) {
+    // A producer writes its session here on a passing verdict. Protect the
+    // secrets dir regardless of the repo root .gitignore, before the run.
+    resolved.saveStorageStatePath = authProfilePath(workspace, caseAuth.saveAuth);
+    await mkdir(authDir(workspace), { recursive: true });
+    const gitignorePath = path.join(authDir(workspace), '.gitignore');
+    if (!(await fileExists(gitignorePath))) {
+      await writeFile(gitignorePath, GITIGNORE_ALL, 'utf8');
+    }
+  }
+
+  const effective =
+    caseAuth.useAuth ??
+    (caseAuth.saveAuth ? 'none' : await readWorkspaceDefaultAuth(workspace)) ??
+    'none';
+  if (effective === 'none') return resolved;
+
+  const storageStatePath = authProfilePath(workspace, effective);
+  if (!(await fileExists(storageStatePath))) {
+    const refresh = await readWorkspaceAuthRefresh(workspace);
+    if (refresh === 'auto') {
+      await ensureAuthProfile(workspace, effective, deps);
+    } else {
+      throw missingProfileError(effective);
+    }
+  }
+  resolved.storageStatePath = storageStatePath;
+  return resolved;
+}
+
 export async function executeRun(req: RunRequest, deps: RunnerDeps = defaultRunnerDeps()): Promise<RunResult> {
   assertCaseName(req.caseName);
   await mkdir(req.runDir, { recursive: true });
@@ -321,10 +443,24 @@ export async function executeRun(req: RunRequest, deps: RunnerDeps = defaultRunn
   try {
     if (req.mode === 'replay') {
       const replay = await loadReplayFile(caseReplayPath(req.workspace, req.caseName));
+      const auth = await resolveAuthOptions(
+        req.workspace,
+        { useAuth: replay.useAuth, saveAuth: replay.saveAuth },
+        deps,
+      );
+      options.storageStatePath = auth.storageStatePath;
+      options.saveStorageStatePath = auth.saveStorageStatePath;
       const healer = req.heal === false ? undefined : await pickHealer(req, deps);
       result = await deps.engine.replayCase(replay, options, healer, await buildReplayHooks(req));
     } else {
       const spec = await loadCaseFile(caseFilePath(req.workspace, req.caseName));
+      const auth = await resolveAuthOptions(
+        req.workspace,
+        { useAuth: spec.useAuth, saveAuth: spec.saveAuth },
+        deps,
+      );
+      options.storageStatePath = auth.storageStatePath;
+      options.saveStorageStatePath = auth.saveStorageStatePath;
       const registry = await deps.loadRegistry(req.workspace);
       const provider = req.providerId ? registry.get(req.providerId) : registry.default();
       if (provider.kind === 'chat') {
@@ -334,6 +470,17 @@ export async function executeRun(req: RunRequest, deps: RunnerDeps = defaultRunn
           await saveReplayFile(caseReplayPath(req.workspace, req.caseName), recorded.replay);
         }
       } else {
+        // The agent record path does NOT forward storageState to the MCP bridge,
+        // so useAuth/saveAuth would silently no-op. Fail fast instead of recording
+        // a misleadingly "authenticated" case. Detect auth from the resolved
+        // values (set only when a real profile / saveAuth was requested).
+        if (auth.storageStatePath || auth.saveStorageStatePath) {
+          const profile = spec.useAuth ?? spec.saveAuth ?? '';
+          throw new Error(
+            `auth (useAuth/saveAuth) is not supported on agent-CLI records yet; ` +
+              `record cases that use "${profile}" auth with a chat provider, or remove useAuth/saveAuth`,
+          );
+        }
         result = await recordViaAgent(req, spec, provider, deps, options);
       }
     }
@@ -360,7 +507,18 @@ export async function executeRun(req: RunRequest, deps: RunnerDeps = defaultRunn
   return result;
 }
 
-export { newRunId, runDirPath, runsDir, casesDir, caseFilePath, caseReplayPath, listCases, fileExists } from './workspace.js';
+export {
+  newRunId,
+  runDirPath,
+  runsDir,
+  casesDir,
+  caseFilePath,
+  caseReplayPath,
+  listCases,
+  fileExists,
+  authDir,
+  authProfilePath,
+} from './workspace.js';
 export type { CaseSummary } from './workspace.js';
 export { runSuite, writeSuiteReports, type RunSuiteOptions, type ReplayRunOptions } from './suiteRunner.js';
 export { suitesDir, suiteDirPath, newSuiteId } from './workspace.js';

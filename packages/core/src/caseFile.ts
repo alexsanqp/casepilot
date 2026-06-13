@@ -46,6 +46,8 @@ const caseSpecSchema = z
     url: caseUrlSchema,
     steps: z.array(caseStepSchema).min(1, 'steps must contain at least one step'),
     expect: z.array(z.string().min(1)).min(1, 'expect must contain at least one expectation'),
+    useAuth: z.string().min(1).optional(),
+    saveAuth: z.string().min(1).optional(),
   })
   .strict();
 
@@ -94,6 +96,8 @@ const replayFileSchema = z
     recordedAt: z.string(),
     steps: z.array(z.discriminatedUnion('kind', [actStepSchema, assertStepSchema])),
     meta: z.object({ healCount: z.number().int().nonnegative() }).strict(),
+    useAuth: z.string().min(1).optional(),
+    saveAuth: z.string().min(1).optional(),
   })
   .strict();
 

@@ -143,3 +143,16 @@ describe('registerProject', () => {
     expect(await readFile(path.join(projectDir, 'casepilot.config.yaml'), 'utf8')).toContain('# customized');
   });
 });
+
+describe('scaffoldWorkspace .gitignore', () => {
+  it('creates a root .gitignore that ignores runs/, suites/, and auth/', async () => {
+    const projectDir = await tmpDir('cp-gitignore-');
+    const outcome = await scaffoldWorkspace(projectDir);
+    const gitignorePath = path.join(projectDir, '.gitignore');
+    expect(outcome.created).toContain(gitignorePath);
+    const gitignore = await readFile(gitignorePath, 'utf8');
+    expect(gitignore).toContain('runs/');
+    expect(gitignore).toContain('suites/');
+    expect(gitignore).toContain('auth/');
+  });
+});

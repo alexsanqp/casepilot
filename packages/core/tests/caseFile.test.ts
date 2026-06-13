@@ -121,6 +121,28 @@ describe('case files', () => {
     expect(await loadCaseFile(filePath)).toEqual(spec);
   });
 
+  it('parses and round-trips useAuth/saveAuth on a case spec', async () => {
+    const spec = {
+      name: 'Login',
+      url: 'https://app.example.com/login',
+      steps: ['Fill credentials', 'Click Sign in'],
+      expect: ['The dashboard is visible'],
+      useAuth: 'main',
+      saveAuth: 'main',
+    };
+    expect(parseCaseSpec(spec)).toEqual(spec);
+
+    const filePath = path.join(dir, 'auth.case.yaml');
+    await saveCaseFile(filePath, spec);
+    expect(await loadCaseFile(filePath)).toEqual(spec);
+  });
+
+  it('rejects an empty useAuth/saveAuth profile name', () => {
+    const base = { name: 'x', url: '/x', steps: ['s'], expect: ['e'] };
+    expect(() => parseCaseSpec({ ...base, useAuth: '' })).toThrow(/useAuth/);
+    expect(() => parseCaseSpec({ ...base, saveAuth: '' })).toThrow(/saveAuth/);
+  });
+
   it('rejects invalid step shapes', () => {
     const base = { name: 'bad steps', url: '/x', expect: ['e'] };
     const invalidSteps: unknown[] = [
@@ -172,6 +194,15 @@ describe('replay files', () => {
     } finally {
       await rm(atomicDir, { recursive: true, force: true });
     }
+  });
+
+  it('parses and round-trips useAuth/saveAuth on a replay file', async () => {
+    const withAuth: ReplayFile = { ...replay, useAuth: 'main', saveAuth: 'main' };
+    expect(parseReplayFile(withAuth)).toEqual(withAuth);
+
+    const filePath = path.join(dir, 'replay-auth.json');
+    await saveReplayFile(filePath, withAuth);
+    expect(await loadReplayFile(filePath)).toEqual(withAuth);
   });
 
   it('rejects unsupported versions', () => {

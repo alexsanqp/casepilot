@@ -22,6 +22,16 @@ const videoConfigSchema = z
   .object({ video: z.boolean().optional(), optimizeVideo: z.boolean().optional() })
   .passthrough();
 
+const defaultAuthSchema = z
+  .object({ defaultAuth: z.string().optional() })
+  .passthrough();
+
+const authRefreshSchema = z
+  .object({ authRefresh: z.enum(['manual', 'auto']).optional() })
+  .passthrough();
+
+export type AuthRefresh = 'manual' | 'auto';
+
 export interface WorkspaceVideoConfig {
   video: boolean;
   optimizeVideo: boolean;
@@ -75,6 +85,30 @@ export async function readWorkspaceVideoConfig(workspace: string): Promise<Works
     video: parsed.data.video ?? fallback.video,
     optimizeVideo: parsed.data.optimizeVideo ?? fallback.optimizeVideo,
   };
+}
+
+/** The auth profile every case loads unless it overrides via `useAuth`. Undefined ⇒ no default. */
+export async function readWorkspaceDefaultAuth(workspace: string): Promise<string | undefined> {
+  const doc = await readWorkspaceConfigDoc(workspace);
+  if (doc === undefined) return undefined;
+  const parsed = defaultAuthSchema.safeParse(doc);
+  if (!parsed.success) {
+    throw new Error(`Invalid defaultAuth in ${path.join(workspace, CONFIG_FILE_NAME)}: must be a string`);
+  }
+  return parsed.data.defaultAuth;
+}
+
+/** How a missing auth profile is handled on a run: "manual" (default) fails fast; "auto" re-runs the producer. */
+export async function readWorkspaceAuthRefresh(workspace: string): Promise<AuthRefresh> {
+  const doc = await readWorkspaceConfigDoc(workspace);
+  if (doc === undefined) return 'manual';
+  const parsed = authRefreshSchema.safeParse(doc);
+  if (!parsed.success) {
+    throw new Error(
+      `Invalid authRefresh in ${path.join(workspace, CONFIG_FILE_NAME)}: must be "manual" or "auto"`,
+    );
+  }
+  return parsed.data.authRefresh ?? 'manual';
 }
 
 export async function readWorkspaceBaseUrl(workspace: string): Promise<string | undefined> {

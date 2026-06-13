@@ -170,6 +170,9 @@ export async function recordCase(
   const screenshots: string[] = [];
   let reported: { passed: boolean; explanation: string } | undefined;
   let videoPath: string | undefined;
+  let verdict: 'passed' | 'failed';
+  let explanation: string;
+  let finalSteps: StepResult[];
 
   const session = await BrowserSession.launch(options);
   try {
@@ -272,30 +275,34 @@ export async function recordCase(
         if (done) break recording;
       }
     }
-  } finally {
-    ({ videoPath } = await session.close());
-  }
 
-  // Retries of a logical step reuse its index; only the final attempt per index counts.
-  const finalSteps = collapseStepResults(stepResults);
-
-  let verdict: 'passed' | 'failed';
-  let explanation: string;
-  if (!reported) {
-    verdict = 'failed';
-    explanation = `Recording stopped after ${maxSteps} provider turns without report_result being called.`;
-  } else if (!reported.passed) {
-    verdict = 'failed';
-    explanation = reported.explanation;
-  } else {
-    const validation = validateFinalOutcomes(finalSteps);
-    if (validation.ok) {
-      verdict = 'passed';
+    // Compute the verdict while the session is still open so a passing producer
+    // can dump its authenticated storageState before the context closes.
+    // Retries of a logical step reuse its index; only the final attempt counts.
+    finalSteps = collapseStepResults(stepResults);
+    if (!reported) {
+      verdict = 'failed';
+      explanation = `Recording stopped after ${maxSteps} provider turns without report_result being called.`;
+    } else if (!reported.passed) {
+      verdict = 'failed';
       explanation = reported.explanation;
     } else {
-      verdict = 'failed';
-      explanation = `Provider reported passed, but validation disagrees: ${validation.reason}.`;
+      const validation = validateFinalOutcomes(finalSteps);
+      if (validation.ok) {
+        verdict = 'passed';
+        explanation = reported.explanation;
+      } else {
+        verdict = 'failed';
+        explanation = `Provider reported passed, but validation disagrees: ${validation.reason}.`;
+      }
     }
+
+    // Save the authenticated session only on a clean pass; never from a failure.
+    if (verdict === 'passed' && options.saveStorageStatePath) {
+      await session.saveStorageState(options.saveStorageStatePath);
+    }
+  } finally {
+    ({ videoPath } = await session.close());
   }
 
   const replay: ReplayFile = {
@@ -306,6 +313,9 @@ export async function recordCase(
     recordedAt: startedAt,
     steps: replaySteps,
     meta: { healCount: 0 },
+    // Carry auth intent into the replay so replay runs are self-contained.
+    ...(caseSpec.useAuth !== undefined ? { useAuth: caseSpec.useAuth } : {}),
+    ...(caseSpec.saveAuth !== undefined ? { saveAuth: caseSpec.saveAuth } : {}),
   };
 
   const replayPath = path.join(options.artifactsDir, 'replay.json');

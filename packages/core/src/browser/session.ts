@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright';
 import type { Browser, BrowserContext, Page } from 'playwright';
@@ -317,9 +318,17 @@ export class BrowserSession {
     // caller never gets a session to close, so tear the browser down here to
     // avoid orphaning a Chromium process (zombie accumulation on a server).
     try {
+      // A set-but-missing auth profile is a configuration error, not a fresh
+      // context: fail loudly rather than silently launching unauthenticated.
+      if (options.storageStatePath && !existsSync(options.storageStatePath)) {
+        await session.browser.close().catch(() => {});
+        throw new Error(`auth profile file not found: ${options.storageStatePath}`);
+      }
       const viewport = options.viewport ?? DEFAULT_VIEWPORT;
       session.context = await session.browser.newContext({
         viewport,
+        // undefined ⇒ fresh context (Playwright accepts undefined here).
+        storageState: options.storageStatePath,
         recordVideo: options.video
           ? { dir: path.join(options.artifactsDir, 'video'), size: viewport }
           : undefined,
@@ -525,6 +534,12 @@ export class BrowserSession {
     const filePath = path.join(this.options.artifactsDir, `${safeName}.png`);
     await this.pageInstance.screenshot({ path: filePath });
     return filePath;
+  }
+
+  /** Dump the context's cookies + localStorage to a Playwright storageState JSON file. */
+  async saveStorageState(filePath: string): Promise<void> {
+    await mkdir(path.dirname(filePath), { recursive: true });
+    await this.context.storageState({ path: filePath });
   }
 
   async close(): Promise<{ videoPath?: string }> {
