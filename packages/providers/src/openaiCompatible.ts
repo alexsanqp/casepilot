@@ -96,21 +96,30 @@ function parseWireMessage(message: WireMessage): { text?: string; toolCalls?: To
 
   if (rawCalls.length > 0) {
     const toolCalls: ToolCall[] = [];
+    let sawMalformed = false;
     for (const raw of rawCalls) {
       const name = raw.function?.name;
       if (typeof name !== 'string' || name === '') continue;
       const args = coerceArguments(raw.function?.arguments);
       if (args === undefined) {
-        // Local models truncate/garble arguments JSON; surface text so the
-        // runner can feed it back and ask for a retry instead of crashing.
-        return {
-          text: content?.trim() || `Tool call "${name}" had malformed JSON arguments; retry with valid JSON.`,
-        };
+        // Local models truncate/garble arguments JSON. Skip this one bad call
+        // instead of discarding the whole batch: a single malformed call in a
+        // batched response must not drop the well-formed calls alongside it.
+        sawMalformed = true;
+        continue;
       }
       toolCalls.push({ name, arguments: args });
     }
     if (toolCalls.length > 0) {
+      // Valid calls proceed; the runner observes any missing action and recovers.
       return { text: content || undefined, toolCalls };
+    }
+    if (sawMalformed) {
+      // No usable calls at all; surface text so the runner can feed it back and
+      // ask for a retry instead of crashing.
+      return {
+        text: content?.trim() || 'Tool call(s) had malformed JSON arguments; retry with valid JSON.',
+      };
     }
   }
 
