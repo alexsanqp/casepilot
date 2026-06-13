@@ -206,3 +206,28 @@ export interface QueryCandidate {
   context: string;
   selector: string;
 }
+
+export interface SuiteCaseResult {
+  caseName: string;
+  status: 'passed' | 'failed' | 'skipped';
+  /** Present iff the case actually ran. */
+  verdict?: 'passed' | 'failed';
+  /** Per-case run dir id; absent when skipped. */
+  runId?: string;
+  durationMs: number;
+  /** Why it was skipped, or the failure/infra-error message. */
+  reason?: string;
+}
+
+export interface SuiteResult {
+  startedAt: string;
+  finishedAt: string;
+  /** Selected cases. */
+  total: number;
+  /** Executed (not skipped). */
+  ran: number;
+  passed: number;
+  failed: number;
+  skipped: number;
+  cases: SuiteCaseResult[];
+}
