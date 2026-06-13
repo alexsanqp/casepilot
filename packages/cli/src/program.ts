@@ -45,6 +45,18 @@ export interface CliActions {
     stepDelayMs?: number;
     baseUrl?: string;
   }): Promise<void>;
+  runAll(opts: {
+    workspace: string;
+    caseNames: string[];
+    concurrency?: number;
+    junit?: string;
+    json?: string;
+    heal: boolean;
+    healPolicy?: 'review' | 'auto';
+    headed: boolean;
+    video?: boolean;
+    baseUrl?: string;
+  }): Promise<void>;
   export(opts: { workspace: string; caseName: string; out?: string }): Promise<void>;
   runs(opts: { workspace: string; server?: string }): Promise<void>;
   report(opts: { workspace: string; runId: string; server?: string }): Promise<void>;
@@ -166,6 +178,48 @@ export function createProgram(actions: CliActions): Command {
           videoPadMs: opts.videoPad,
           slowMo: opts.slowMo,
           stepDelayMs: opts.stepDelay,
+          baseUrl: opts.baseUrl,
+        });
+      },
+    );
+
+  program
+    .command('run-all')
+    .description('Replay every recorded case (or the named ones); exit code reflects the aggregate verdict')
+    .argument('[cases...]', 'case names to run (default: all recorded cases)')
+    .option('--concurrency <n>', 'how many cases to replay in parallel (default 1)', (v) => Number.parseInt(v, 10))
+    .option('--junit <file>', 'also write a JUnit XML report to this path')
+    .option('--json <file>', 'also write a JSON suite report to this path')
+    .option('--no-heal', 'disable AI healing of failed steps')
+    .option('--heal-policy <policy>', 'review or auto', parseHealPolicy)
+    .option('--headed', 'run with a visible browser')
+    .option('--video', 'record videos (workspace default: on)')
+    .option('--no-video', 'disable video recording')
+    .option('--base-url <url>', BASE_URL_HELP, parseBaseUrl)
+    .action(
+      async (
+        caseNames: string[],
+        opts: {
+          concurrency?: number;
+          junit?: string;
+          json?: string;
+          heal: boolean;
+          healPolicy?: 'review' | 'auto';
+          headed?: boolean;
+          video?: boolean;
+          baseUrl?: string;
+        },
+      ) => {
+        await actions.runAll({
+          workspace: workspace(),
+          caseNames,
+          concurrency: opts.concurrency,
+          junit: opts.junit,
+          json: opts.json,
+          heal: opts.heal,
+          healPolicy: opts.healPolicy,
+          headed: !!opts.headed,
+          video: opts.video,
           baseUrl: opts.baseUrl,
         });
       },

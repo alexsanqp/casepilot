@@ -1,11 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
+import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { createProgram, type CliActions } from '../src/program.js';
+import { createActions } from '../src/actions.js';
 
 function stubActions(): CliActions {
   return {
     init: vi.fn(async () => {}),
     record: vi.fn(async () => {}),
     run: vi.fn(async () => {}),
+    runAll: vi.fn(async () => {}),
     export: vi.fn(async () => {}),
     runs: vi.fn(async () => {}),
     report: vi.fn(async () => {}),
@@ -371,5 +376,43 @@ describe('casepilot CLI parsing', () => {
     const actions = stubActions();
     await expect(parse(actions, ['record'])).rejects.toThrow();
     expect(actions.record).not.toHaveBeenCalled();
+  });
+
+  it('run-all passes all flags through and defaults to all cases', async () => {
+    const calls: unknown[] = [];
+    const actions = { ...stubActions(), runAll: vi.fn(async (o: unknown) => { calls.push(o); }) };
+    await parse(actions, ['run-all', '--concurrency', '3', '--junit', 'out.xml', '--no-heal']);
+    expect(calls[0]).toMatchObject({ caseNames: [], concurrency: 3, junit: 'out.xml', heal: false });
+  });
+
+  it('run-all takes explicit case names', async () => {
+    const calls: unknown[] = [];
+    const actions = { ...stubActions(), runAll: vi.fn(async (o: unknown) => { calls.push(o); }) };
+    await parse(actions, ['run-all', 'login', 'checkout']);
+    expect(calls[0]).toMatchObject({ caseNames: ['login', 'checkout'] });
+  });
+});
+
+describe('createActions().runAll exit code', () => {
+  it('exits 1 and warns when no recorded cases ran', async () => {
+    // A workspace with only an UN-recorded case (a *.case.yaml with NO matching
+    // *.replay.json). runSuite skips every case, returns ran===0, and never
+    // invokes a browser — so this stays fast and hermetic.
+    process.exitCode = 0;
+    const ws = await mkdtemp(path.join(tmpdir(), 'cp-cli-runall-'));
+    await mkdir(path.join(ws, 'cases'), { recursive: true });
+    await writeFile(
+      path.join(ws, 'cases', 'unrecorded.case.yaml'),
+      'name: unrecorded\nurl: /x\nsteps:\n  - go\nexpect:\n  - ok\n',
+      'utf8',
+    );
+
+    const errors: string[] = [];
+    const actions = createActions({ out: () => {}, err: (line) => errors.push(line) });
+    await actions.runAll({ workspace: ws, caseNames: [], heal: false, headed: false });
+
+    expect(process.exitCode).toBe(1);
+    expect(errors).toContain('no recorded cases to run');
+    process.exitCode = 0;
   });
 });
