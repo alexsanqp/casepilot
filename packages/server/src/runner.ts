@@ -362,6 +362,8 @@ export async function executeRun(req: RunRequest, deps: RunnerDeps = defaultRunn
 
 export { newRunId, runDirPath, runsDir, casesDir, caseFilePath, caseReplayPath, listCases, fileExists } from './workspace.js';
 export type { CaseSummary } from './workspace.js';
+export { runSuite, writeSuiteReports, type RunSuiteOptions, type ReplayRunOptions } from './suiteRunner.js';
+export { suitesDir, suiteDirPath, newSuiteId } from './workspace.js';
 export { readRunsFromDir } from './runs.js';
 export type { RunEntry, RunStatus, RunSummary } from './runs.js';
 export { buildHealer } from './healer.js';
