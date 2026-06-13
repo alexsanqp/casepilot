@@ -62,6 +62,7 @@ npx casepilot export login
 | Host-portable cases | relative `url: /login` resolved against `--base-url` > `CASEPILOT_BASE_URL` > workspace `baseUrl:` |
 | Record once with any LLM | `casepilot record <case>` via chat API or agent CLI |
 | Deterministic free replays | `casepilot run <case>` replays `replay.json`, no LLM calls |
+| Suite runs + CI reports | `casepilot run-all` replays every recorded case into one verdict and writes JUnit XML + JSON |
 | Self-healing with review | broken steps repaired by a chat LLM and queued in `heals.json` for approval (`casepilot heals`, dashboard, or `healPolicy: auto`); `--no-heal` to disable |
 | Trustworthy verdicts | server-side assert guard, never the model's claim alone |
 | Proof videos by default | every record/run leaves a video plus an idle-trimmed copy; opt out with `--no-video` / `--no-optimize-video` |

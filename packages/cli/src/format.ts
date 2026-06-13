@@ -1,4 +1,4 @@
-import type { ReplayStep, RunResult, StepResult } from '@casepilot/core';
+import type { ReplayStep, RunResult, StepResult, SuiteResult } from '@casepilot/core';
 import type { HealRecord, RunSummary } from '@casepilot/server/runner';
 
 const STATUS_MARKERS = { passed: '[PASS]', failed: '[FAIL]', healed: '[HEAL]' } as const;
@@ -79,4 +79,20 @@ export function formatRunSummaries(runs: RunSummary[]): string {
     ['RUN ID', 'CASE', 'MODE', 'PROVIDER', 'STATUS', 'VERDICT', 'STARTED'],
     runs.map((r) => [r.runId, r.case, r.mode, r.provider, r.status, r.verdict ?? '-', r.startedAt]),
   );
+}
+
+export function formatSuiteResult(suite: SuiteResult): string {
+  const tag = { passed: 'PASS', failed: 'FAIL', skipped: 'SKIP' } as const;
+  const rows = suite.cases.map((c) => {
+    const secs = (c.durationMs / 1000).toFixed(1);
+    const reason = c.status !== 'passed' && c.reason ? `  (${c.reason})` : '';
+    return `  ${tag[c.status]}  ${c.caseName}  ${secs}s${reason}`;
+  });
+  const summary = `${suite.passed} passed, ${suite.failed} failed, ${suite.skipped} skipped (${suite.ran}/${suite.total} ran)`;
+  return [...rows, '', summary].join('\n');
+}
+
+/** CI contract: pass only when at least one case ran and none failed. */
+export function suiteExitCode(suite: SuiteResult): number {
+  return suite.ran >= 1 && suite.failed === 0 ? 0 : 1;
 }

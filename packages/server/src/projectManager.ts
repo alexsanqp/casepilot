@@ -2,7 +2,9 @@ import path from 'node:path';
 import type { RunnerDeps } from './runner.js';
 import { RunRegistry } from './runs.js';
 import { RunService } from './service.js';
-import { listCases, runsDir } from './workspace.js';
+import { SuiteRegistry } from './suites.js';
+import { SuiteService } from './suiteService.js';
+import { listCases, runsDir, suitesDir } from './workspace.js';
 import { loadProjects, registerProject, removeProject, type Project } from './projects.js';
 
 export interface ProjectContext {
@@ -10,6 +12,8 @@ export interface ProjectContext {
   workspace: string;
   registry: RunRegistry;
   service: RunService;
+  suiteRegistry: SuiteRegistry;
+  suiteService: SuiteService;
 }
 
 export interface ProjectInfo extends Project {
@@ -88,7 +92,9 @@ export class ProjectManager {
   private async buildContext(project: Project, workspace: string): Promise<ProjectContext> {
     const registry = await RunRegistry.open(runsDir(workspace));
     const service = new RunService(workspace, registry, this.options.deps);
-    return { project, workspace, registry, service };
+    const suiteRegistry = await SuiteRegistry.open(suitesDir(workspace));
+    const suiteService = new SuiteService(workspace, suiteRegistry, registry, this.options.deps);
+    return { project, workspace, registry, service, suiteRegistry, suiteService };
   }
 
   async list(): Promise<ProjectInfo[]> {

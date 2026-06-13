@@ -40,6 +40,18 @@ export function newRunId(): string {
   return `${ts}-${randomBytes(3).toString('hex')}`;
 }
 
+export function suitesDir(workspace: string): string {
+  return path.join(workspace, 'suites');
+}
+
+export function suiteDirPath(workspace: string, suiteId: string): string {
+  return path.join(suitesDir(workspace), suiteId);
+}
+
+export function newSuiteId(): string {
+  return `suite-${newRunId()}`;
+}
+
 export async function fileExists(filePath: string): Promise<boolean> {
   try {
     await stat(filePath);

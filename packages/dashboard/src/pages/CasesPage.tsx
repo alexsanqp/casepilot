@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { errorMessage, getCase, listCases, listRuns } from '../api/client';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { errorMessage, getCase, listCases, listRuns, startSuite } from '../api/client';
 import type { CaseLastRun, CaseSummary } from '../api/types';
 import { Badge, VerdictBadge } from '../components/Badge';
 import { CaseActions } from '../components/CaseActions';
@@ -15,12 +15,14 @@ interface ExportState {
 
 export function CasesPage() {
   const { projectId = '' } = useParams<{ projectId: string }>();
+  const navigate = useNavigate();
   const [cases, setCases] = useState<CaseSummary[] | null>(null);
   const [stepCounts, setStepCounts] = useState<Record<string, number>>({});
   const [fallbackLastRuns, setFallbackLastRuns] = useState<Record<string, CaseLastRun>>({});
   const { providers, providersError } = useProviders(projectId);
   const [error, setError] = useState<string | null>(null);
   const [exportState, setExportState] = useState<ExportState | null>(null);
+  const [runningAll, setRunningAll] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -59,13 +61,42 @@ export function CasesPage() {
     void load();
   }, [load]);
 
+  const runAll = useCallback(async () => {
+    setRunningAll(true);
+    setError(null);
+    try {
+      const { suiteId } = await startSuite(projectId, {});
+      navigate(`/p/${encodeURIComponent(projectId)}/suites/${encodeURIComponent(suiteId)}`);
+    } catch (err) {
+      setError(errorMessage(err));
+      setRunningAll(false);
+    }
+  }, [projectId, navigate]);
+
+  const hasReplayableCases = (cases ?? []).some((c) => c.hasReplay);
+
   return (
     <div>
       <div className="page-header">
         <h1>Cases</h1>
-        <Link className="btn btn-primary" to={`/p/${encodeURIComponent(projectId)}/cases/new`}>
-          New case
-        </Link>
+        <span className="header-links">
+          <button
+            type="button"
+            className="btn"
+            disabled={runningAll || !hasReplayableCases}
+            title={
+              hasReplayableCases
+                ? 'Replay every recorded case as one suite'
+                : 'Record at least one case to enable suite runs'
+            }
+            onClick={() => void runAll()}
+          >
+            {runningAll ? 'Starting…' : 'Run all'}
+          </button>
+          <Link className="btn btn-primary" to={`/p/${encodeURIComponent(projectId)}/cases/new`}>
+            New case
+          </Link>
+        </span>
       </div>
       {error && <p className="message message-error">{error}</p>}
       {providersError && (

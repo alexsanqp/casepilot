@@ -1,11 +1,17 @@
 import { describe, expect, it, vi } from 'vitest';
+import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { createProgram, type CliActions } from '../src/program.js';
+import { createActions } from '../src/actions.js';
+import { parseConcurrency } from '../src/options.js';
 
 function stubActions(): CliActions {
   return {
     init: vi.fn(async () => {}),
     record: vi.fn(async () => {}),
     run: vi.fn(async () => {}),
+    runAll: vi.fn(async () => {}),
     export: vi.fn(async () => {}),
     runs: vi.fn(async () => {}),
     report: vi.fn(async () => {}),
@@ -371,5 +377,104 @@ describe('casepilot CLI parsing', () => {
     const actions = stubActions();
     await expect(parse(actions, ['record'])).rejects.toThrow();
     expect(actions.record).not.toHaveBeenCalled();
+  });
+
+  it('run-all passes all flags through and defaults to all cases', async () => {
+    const calls: unknown[] = [];
+    const actions = { ...stubActions(), runAll: vi.fn(async (o: unknown) => { calls.push(o); }) };
+    await parse(actions, ['run-all', '--concurrency', '3', '--junit', 'out.xml', '--no-heal']);
+    expect(calls[0]).toMatchObject({ caseNames: [], concurrency: 3, junit: 'out.xml', heal: false });
+  });
+
+  it('run-all takes explicit case names', async () => {
+    const calls: unknown[] = [];
+    const actions = { ...stubActions(), runAll: vi.fn(async (o: unknown) => { calls.push(o); }) };
+    await parse(actions, ['run-all', 'login', 'checkout']);
+    expect(calls[0]).toMatchObject({ caseNames: ['login', 'checkout'] });
+  });
+
+  it('run-all plumbs the replay flags inherited from run', async () => {
+    const calls: unknown[] = [];
+    const actions = { ...stubActions(), runAll: vi.fn(async (o: unknown) => { calls.push(o); }) };
+    await parse(actions, [
+      'run-all',
+      '--slow-mo', '200',
+      '--step-delay', '50',
+      '--screenshots',
+      '--viewport', '1280x720',
+      '--no-optimize-video',
+      '--video-pad', '300',
+    ]);
+    expect(calls[0]).toMatchObject({
+      slowMo: 200,
+      stepDelayMs: 50,
+      screenshots: true,
+      viewport: { width: 1280, height: 720 },
+      optimizeVideo: false,
+      videoPadMs: 300,
+    });
+  });
+
+  it('run-all defaults screenshots to false and leaves optional flags undefined', async () => {
+    const calls: unknown[] = [];
+    const actions = { ...stubActions(), runAll: vi.fn(async (o: unknown) => { calls.push(o); }) };
+    await parse(actions, ['run-all']);
+    expect(calls[0]).toMatchObject({
+      screenshots: false,
+      viewport: undefined,
+      optimizeVideo: undefined,
+      videoPadMs: undefined,
+      slowMo: undefined,
+      stepDelayMs: undefined,
+    });
+  });
+
+  it('run-all --no-video yields video false; no flag leaves it undefined', async () => {
+    const off: unknown[] = [];
+    const offActions = { ...stubActions(), runAll: vi.fn(async (o: unknown) => { off.push(o); }) };
+    await parse(offActions, ['run-all', '--no-video']);
+    expect(off[0]).toMatchObject({ video: false });
+
+    const none: unknown[] = [];
+    const noneActions = { ...stubActions(), runAll: vi.fn(async (o: unknown) => { none.push(o); }) };
+    await parse(noneActions, ['run-all']);
+    expect(none[0]).toMatchObject({ video: undefined });
+  });
+});
+
+describe('parseConcurrency', () => {
+  it('accepts positive integers', () => {
+    expect(parseConcurrency('1')).toBe(1);
+    expect(parseConcurrency('4')).toBe(4);
+  });
+
+  it('rejects non-integers, zero, and negatives', () => {
+    for (const bad of ['abc', '0', '-1', '1.5']) {
+      expect(() => parseConcurrency(bad)).toThrow();
+    }
+  });
+});
+
+describe('createActions().runAll exit code', () => {
+  it('exits 1 and warns when no recorded cases ran', async () => {
+    // A workspace with only an UN-recorded case (a *.case.yaml with NO matching
+    // *.replay.json). runSuite skips every case, returns ran===0, and never
+    // invokes a browser — so this stays fast and hermetic.
+    process.exitCode = 0;
+    const ws = await mkdtemp(path.join(tmpdir(), 'cp-cli-runall-'));
+    await mkdir(path.join(ws, 'cases'), { recursive: true });
+    await writeFile(
+      path.join(ws, 'cases', 'unrecorded.case.yaml'),
+      'name: unrecorded\nurl: /x\nsteps:\n  - go\nexpect:\n  - ok\n',
+      'utf8',
+    );
+
+    const errors: string[] = [];
+    const actions = createActions({ out: () => {}, err: (line) => errors.push(line) });
+    await actions.runAll({ workspace: ws, caseNames: [], heal: false, headed: false, screenshots: false });
+
+    expect(process.exitCode).toBe(1);
+    expect(errors).toContain('no recorded cases to run');
+    process.exitCode = 0;
   });
 });

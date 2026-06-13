@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { createReadStream } from 'node:fs';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import YAML from 'yaml';
@@ -12,6 +13,8 @@ import {
   fileExists,
   isSafeName,
   listCases,
+  suiteDirPath,
+  suitesDir,
 } from './workspace.js';
 import { isAbsoluteHttpUrl } from './workspaceConfig.js';
 import type { ProviderRegistryLike } from './providersLoader.js';
@@ -48,6 +51,22 @@ const postRunBodySchema = z.object({
     .string()
     .refine(isAbsoluteHttpUrl, { message: 'baseUrl must be an absolute http(s) URL' })
     .optional(),
+});
+
+const suiteRunBodySchema = z.object({
+  caseNames: z.array(z.string()).optional(),
+  concurrency: z.number().int().positive().max(64).optional(),
+  heal: z.boolean().optional(),
+  healPolicy: postRunBodySchema.shape.healPolicy,
+  headed: postRunBodySchema.shape.headed,
+  video: postRunBodySchema.shape.video,
+  screenshots: postRunBodySchema.shape.screenshots,
+  viewport: postRunBodySchema.shape.viewport,
+  optimizeVideo: postRunBodySchema.shape.optimizeVideo,
+  videoPadMs: postRunBodySchema.shape.videoPadMs,
+  slowMo: postRunBodySchema.shape.slowMo,
+  stepDelayMs: postRunBodySchema.shape.stepDelayMs,
+  baseUrl: postRunBodySchema.shape.baseUrl,
 });
 
 const postProjectBodySchema = z.object({
@@ -247,6 +266,60 @@ function registerProjectScopedRoutes(app: FastifyInstance, deps: ApiDeps, base: 
     }
     return reply.header('content-type', 'text/plain; charset=utf-8').send(await readFile(transcriptPath, 'utf8'));
   });
+
+  app.post(`${base}/suites/runs`, async (req, reply) => {
+    const ctx = await resolve(req, reply);
+    if (!ctx) return reply;
+    const body = suiteRunBodySchema.safeParse(req.body ?? {});
+    if (!body.success) {
+      return reply.status(400).send({ error: body.error.message });
+    }
+    const { caseNames, concurrency, ...replayOptions } = body.data;
+    const { suiteId } = ctx.suiteService.start({ caseNames, concurrency, replayOptions });
+    return reply.status(202).send({ suiteId, status: 'running' });
+  });
+
+  app.get(`${base}/suites/runs`, async (req, reply) => {
+    const ctx = await resolve(req, reply);
+    if (!ctx) return reply;
+    return ctx.suiteRegistry.list();
+  });
+
+  app.get<{ Params: { suiteId: string } }>(`${base}/suites/runs/:suiteId`, async (req, reply) => {
+    const ctx = await resolve(req, reply);
+    if (!ctx) return reply;
+    const entry = ctx.suiteRegistry.get(req.params.suiteId);
+    if (!entry) return reply.status(404).send({ error: `suite "${req.params.suiteId}" not found` });
+    return { status: entry.status, result: entry.result, error: entry.error };
+  });
+
+  for (const kind of ['junit', 'json'] as const) {
+    app.get<{ Params: { suiteId: string } }>(`${base}/suites/runs/:suiteId/${kind}`, async (req, reply) => {
+      const ctx = await resolve(req, reply);
+      if (!ctx) return reply;
+      const { suiteId } = req.params;
+      // suiteId is interpolated into a filesystem path below. Only serve reports
+      // for suites the registry knows, which blocks path traversal (an attacker
+      // id is never a registry key) and keeps unknown ids a clean 404.
+      if (!ctx.suiteRegistry.get(suiteId)) {
+        return reply.status(404).send({ error: `suite "${suiteId}" not found` });
+      }
+      const file = path.join(
+        suiteDirPath(ctx.workspace, suiteId),
+        kind === 'junit' ? 'junit.xml' : 'suite.json',
+      );
+      // Defense in depth: never read outside the workspace suites dir.
+      if (!path.resolve(file).startsWith(path.resolve(suitesDir(ctx.workspace)) + path.sep)) {
+        return reply.status(404).send({ error: `suite "${suiteId}" not found` });
+      }
+      try {
+        const body = await readFile(file, 'utf8');
+        return reply.header('content-type', kind === 'junit' ? 'application/xml' : 'application/json').send(body);
+      } catch {
+        return reply.status(404).send({ error: 'report not found' });
+      }
+    });
+  }
 
   registerHealRoutes(app, base, resolve);
   registerArtifactRoutes(app, base, resolve);

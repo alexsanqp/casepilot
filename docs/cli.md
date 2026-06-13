@@ -69,6 +69,36 @@ Video defaults: both the run video and its idle-trimmed copy are produced by def
 
 For `record` and `run`, the effective base URL is resolved as: `--base-url` flag > `CASEPILOT_BASE_URL` environment variable > `baseUrl:` key in `casepilot.config.yaml` > none. Both the flag and the env var must be absolute http(s) URLs.
 
+## casepilot run-all [cases...]
+
+Replay a whole suite of recorded cases into one aggregate verdict. With no arguments it runs every recorded case in the workspace; pass `[cases...]` to run only those (by name). Each case is replayed exactly like `casepilot run`, so there is no LLM cost unless healing triggers.
+
+| Option | Meaning |
+| --- | --- |
+| `--concurrency <n>` | how many cases to replay in parallel (default 1, i.e. serial) |
+| `--junit <file>` | also write a JUnit XML report to this path |
+| `--json <file>` | also write a JSON suite report to this path |
+| `--no-heal` | disable AI healing of failed steps |
+| `--heal-policy <policy>` | `review` (queue heals for approval, the default) or `auto` (apply immediately); overrides the workspace `healPolicy:` key |
+| `--headed` | run with a visible browser |
+| `--video` / `--no-video` | record a video per case (default: **on**; `video:` in `casepilot.config.yaml` changes the default) |
+| `--base-url <url>` | absolute http(s) base URL relative case urls resolve against (same precedence as `run`) |
+
+A case that has no recorded replay (`cases/<case>.replay.json`) is **skipped with a warning** rather than failing the suite; a named case that does not exist is likewise skipped. Skipped cases are reported but do not run. An infra error thrown while replaying one case (e.g. a browser crash) is isolated as a failed case so the rest of the suite keeps going.
+
+As each case settles, a progress line (`[2/5] login … PASS`) is printed to stderr; the final summary (per-case PASS/FAIL/SKIP plus counts) goes to stdout.
+
+Reports are always written to `<workspace>/suites/<suiteId>/suite.json` and `<workspace>/suites/<suiteId>/junit.xml`. `--junit <file>` and `--json <file>` write the same JUnit XML / JSON to those extra paths as well (handy for a fixed CI artifact location).
+
+Exit code: `0` only if at least one case ran and none failed. If nothing ran — every selected case was skipped, or no recorded cases were found — the exit code is `1` (and `no recorded cases to run` is printed to stderr). Any failed case also yields `1`.
+
+```bash
+casepilot run-all                                   # replay every recorded case
+casepilot run-all login checkout                    # only these two
+casepilot run-all --concurrency 4 --junit out/junit.xml
+casepilot run-all --no-heal --base-url https://staging.example.com
+```
+
 ## casepilot export \<case\>
 
 Export the recorded replay as a Playwright spec file.

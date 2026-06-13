@@ -19,6 +19,7 @@ import { CasesPage } from './pages/CasesPage';
 import { HealsPage } from './pages/HealsPage';
 import { ProjectsPage } from './pages/ProjectsPage';
 import { RunDetailPage } from './pages/RunDetailPage';
+import { SuiteDetailPage } from './pages/SuiteDetailPage';
 import { ProjectsProvider, useProjects } from './state/projects';
 import { RunToastsProvider } from './state/runToasts';
 
@@ -173,6 +174,7 @@ export function App() {
                 <Route path="cases/:name" element={<CaseDetailPage />} />
                 <Route path="cases/:name/edit" element={<CaseEditRedirect />} />
                 <Route path="cases/:name/runs/:runId" element={<RunDetailPage />} />
+                <Route path="suites/:suiteId" element={<SuiteDetailPage />} />
                 <Route path="runs" element={<Navigate to="../cases" replace />} />
                 <Route path="runs/:id" element={<LegacyRunRedirect />} />
                 <Route path="heals" element={<HealsPage />} />

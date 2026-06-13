@@ -5,6 +5,8 @@ export { recordCase, RECORDER_TOOLS } from './engine/recorder.js';
 export { replayCase } from './engine/replayer.js';
 export { exportToPlaywrightSpec } from './engine/exporter.js';
 export { assertionsWereVerified, collapseStepResults, validateFinalOutcomes } from './engine/outcomes.js';
+export { aggregateSuite, suiteToJson, suiteToJUnitXml } from './engine/suiteReport.js';
+export type { SuiteResult, SuiteCaseResult } from './types.js';
 export { stripAnsi } from './text.js';
 export { computeKeepSegments, optimizeVideo, type KeepSegment } from './engine/videoOptimizer.js';
 export {

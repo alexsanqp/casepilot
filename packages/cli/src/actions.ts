@@ -8,17 +8,28 @@ import {
   executeRun,
   listHeals,
   newRunId,
+  newSuiteId,
   readRunsFromDir,
   rejectHeal,
   resolveMcpBinPath,
   runDirPath,
+  runSuite,
   runsDir,
+  suiteDirPath,
+  writeSuiteReports,
   type ApprovalOutcome,
   type RunSummary,
 } from '@casepilot/server/runner';
 import { initWorkspace } from './init.js';
 import { resolveBaseUrl } from './options.js';
-import { formatHealDiff, formatHealList, formatRunResult, formatRunSummaries } from './format.js';
+import {
+  formatHealDiff,
+  formatHealList,
+  formatRunResult,
+  formatRunSummaries,
+  formatSuiteResult,
+  suiteExitCode,
+} from './format.js';
 import { startHeartbeat } from './heartbeat.js';
 import { formatTranscript } from './transcript.js';
 import type { CliActions } from './program.js';
@@ -141,6 +152,40 @@ export function createActions(io: CliIo = consoleIo): CliActions {
         io.out(`Inspect the provider transcript with: casepilot transcript ${runId}`);
       }
       process.exitCode = result.verdict === 'passed' ? 0 : 1;
+    },
+
+    async runAll({ workspace, caseNames, concurrency, junit, json, heal, healPolicy, headed, video, screenshots, viewport, optimizeVideo, videoPadMs, slowMo, stepDelayMs, baseUrl }) {
+      const ws = path.resolve(workspace);
+      const suiteId = newSuiteId();
+      const suite = await runSuite({
+        workspace: ws,
+        caseNames: caseNames.length > 0 ? caseNames : undefined,
+        concurrency,
+        replayOptions: {
+          heal,
+          healPolicy,
+          headed,
+          video,
+          screenshots,
+          viewport,
+          optimizeVideo,
+          videoPadMs,
+          slowMo,
+          stepDelayMs,
+          baseUrl: resolveBaseUrl(baseUrl),
+        },
+        onProgress: (ev) => {
+          if (ev.phase !== 'done' || !ev.case) return;
+          const c = ev.case;
+          const tag = c.status === 'passed' ? 'PASS' : c.status === 'failed' ? 'FAIL' : 'SKIP';
+          io.err(`[${ev.index + 1}/${ev.total}] ${c.caseName} … ${tag}${c.reason ? ` (${c.reason})` : ''}`);
+        },
+      });
+      await writeSuiteReports(suiteDirPath(ws, suiteId), suite, { junit, json });
+      io.out(formatSuiteResult(suite));
+      io.out(`Reports:    ${suiteDirPath(ws, suiteId)}`);
+      process.exitCode = suiteExitCode(suite);
+      if (suite.ran === 0) io.err('no recorded cases to run');
     },
 
     async export({ workspace, caseName, out }) {
