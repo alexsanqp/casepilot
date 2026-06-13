@@ -205,16 +205,23 @@ function TranscriptSection({ projectId, runId }: { projectId: string; runId: str
   const [error, setError] = useState<string | null>(null);
   const [requested, setRequested] = useState(false);
 
-  const load = () => {
-    if (requested) return;
-    setRequested(true);
+  useEffect(() => {
+    if (!requested) return;
+    let cancelled = false;
     getTranscript(projectId, runId)
-      .then(setText)
-      .catch((err: unknown) => setError(errorMessage(err)));
-  };
+      .then((value) => {
+        if (!cancelled) setText(value);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setError(errorMessage(err));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [requested, projectId, runId]);
 
   return (
-    <details className="collapsible" onToggle={(e) => e.currentTarget.open && load()}>
+    <details className="collapsible" onToggle={(e) => e.currentTarget.open && setRequested(true)}>
       <summary>Transcript</summary>
       {error && <p className="message message-error">{error}</p>}
       {!error && (text === null ? <p className="muted">Loading…</p> : <pre className="code-block">{text}</pre>)}
@@ -228,19 +235,25 @@ function ReplaySection({ projectId, caseName }: { projectId: string; caseName: s
   const [error, setError] = useState<string | null>(null);
   const [requested, setRequested] = useState(false);
 
-  const load = () => {
-    if (requested) return;
-    setRequested(true);
+  useEffect(() => {
+    if (!requested) return;
+    let cancelled = false;
     getCase(projectId, caseName)
       .then((detail) => {
+        if (cancelled) return;
         if (detail.replay) setReplay(detail.replay);
         else setMissing(true);
       })
-      .catch((err: unknown) => setError(errorMessage(err)));
-  };
+      .catch((err: unknown) => {
+        if (!cancelled) setError(errorMessage(err));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [requested, projectId, caseName]);
 
   return (
-    <details className="collapsible" onToggle={(e) => e.currentTarget.open && load()}>
+    <details className="collapsible" onToggle={(e) => e.currentTarget.open && setRequested(true)}>
       <summary>Replay JSON</summary>
       {error && <p className="message message-error">{error}</p>}
       {missing && <p className="muted">No replay recorded for this case.</p>}

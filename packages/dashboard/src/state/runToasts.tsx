@@ -53,8 +53,10 @@ export function RunToastsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!hasTracked) return;
     const poll = async () => {
-      const pending = trackedRef.current;
-      const projectIds = [...new Set(pending.map((t) => t.projectId))];
+      // Derive the project set from the freshest snapshot. Iterating awaits below
+      // may run while trackRun adds/removes entries, so each iteration re-reads
+      // trackedRef.current rather than relying on a single stale capture.
+      const projectIds = [...new Set(trackedRef.current.map((t) => t.projectId))];
       for (const projectId of projectIds) {
         let runs;
         try {
@@ -62,6 +64,9 @@ export function RunToastsProvider({ children }: { children: ReactNode }) {
         } catch {
           continue;
         }
+        // Re-read AFTER the await so runs added/removed during this fetch are
+        // reflected when deciding which tracked runs just finished.
+        const pending = trackedRef.current;
         const byId = new Map(runs.map((r) => [r.runId, r]));
         const finished = pending.filter((t) => {
           if (t.projectId !== projectId) return false;
