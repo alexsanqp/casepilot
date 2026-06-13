@@ -244,13 +244,16 @@ export function createActions(io: CliIo = consoleIo): CliActions {
 
     async serve({ workspace, host, port, registry }) {
       const { startServer } = await import('@casepilot/server');
-      const { address } = await startServer({
+      await startServer({
         workspace: workspace ? path.resolve(workspace) : undefined,
         host,
         port,
         registryPath: registry,
       });
-      io.out(`casepilot server listening on ${address}`);
+      // Report the configured bind host: Fastify collapses 0.0.0.0 to 127.0.0.1
+      // in its returned address, which is misleading when serving all interfaces
+      // (e.g. inside a container with `--host 0.0.0.0`).
+      io.out(`casepilot server listening on http://${host}:${port}`);
       io.out(workspace ? `Serving workspace ${path.resolve(workspace)}` : 'Serving all registered projects.');
       io.out('Press Ctrl+C to stop.');
     },
