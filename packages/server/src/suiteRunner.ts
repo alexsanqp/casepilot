@@ -36,7 +36,7 @@ export interface RunSuiteOptions {
   replayOptions?: ReplayRunOptions;
   onProgress?: (ev: SuiteProgress) => void;
   onCaseStart?: (runId: string, caseName: string, runDir: string) => void;
-  onCaseSettled?: (runId: string, result?: RunResult, error?: string) => void;
+  onCaseSettled?: (runId: string, result?: RunResult, error?: string) => void | Promise<void>;
 }
 
 export async function runSuite(opts: RunSuiteOptions, deps: Partial<RunSuiteDeps> = {}): Promise<SuiteResult> {
@@ -71,7 +71,7 @@ export async function runSuite(opts: RunSuiteOptions, deps: Partial<RunSuiteDeps
         mode: 'replay',
         runDir,
       } as RunRequest);
-      opts.onCaseSettled?.(runId, result);
+      await opts.onCaseSettled?.(runId, result);
       return settle({
         caseName,
         status: result.verdict === 'passed' ? 'passed' : 'failed',
@@ -82,7 +82,7 @@ export async function runSuite(opts: RunSuiteOptions, deps: Partial<RunSuiteDeps
       });
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);
-      opts.onCaseSettled?.(runId, undefined, reason);
+      await opts.onCaseSettled?.(runId, undefined, reason);
       return settle({ caseName, status: 'failed', runId, durationMs: Date.now() - t0, reason });
     }
   });

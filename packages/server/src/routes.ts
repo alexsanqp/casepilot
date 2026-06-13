@@ -53,6 +53,22 @@ const postRunBodySchema = z.object({
     .optional(),
 });
 
+const suiteRunBodySchema = z.object({
+  caseNames: z.array(z.string()).optional(),
+  concurrency: z.number().int().positive().max(64).optional(),
+  heal: z.boolean().optional(),
+  healPolicy: postRunBodySchema.shape.healPolicy,
+  headed: postRunBodySchema.shape.headed,
+  video: postRunBodySchema.shape.video,
+  screenshots: postRunBodySchema.shape.screenshots,
+  viewport: postRunBodySchema.shape.viewport,
+  optimizeVideo: postRunBodySchema.shape.optimizeVideo,
+  videoPadMs: postRunBodySchema.shape.videoPadMs,
+  slowMo: postRunBodySchema.shape.slowMo,
+  stepDelayMs: postRunBodySchema.shape.stepDelayMs,
+  baseUrl: postRunBodySchema.shape.baseUrl,
+});
+
 const postProjectBodySchema = z.object({
   name: z.string().min(1),
   path: z.string().min(1),
@@ -251,16 +267,17 @@ function registerProjectScopedRoutes(app: FastifyInstance, deps: ApiDeps, base: 
     return reply.header('content-type', 'text/plain; charset=utf-8').send(await readFile(transcriptPath, 'utf8'));
   });
 
-  app.post<{ Body: { caseNames?: string[]; concurrency?: number } & Record<string, unknown> }>(
-    `${base}/suites/runs`,
-    async (req, reply) => {
-      const ctx = await resolve(req, reply);
-      if (!ctx) return reply;
-      const { caseNames, concurrency, ...replayOptions } = req.body ?? {};
-      const { suiteId } = ctx.suiteService.start({ caseNames, concurrency, replayOptions });
-      return { suiteId, status: 'running' };
-    },
-  );
+  app.post(`${base}/suites/runs`, async (req, reply) => {
+    const ctx = await resolve(req, reply);
+    if (!ctx) return reply;
+    const body = suiteRunBodySchema.safeParse(req.body ?? {});
+    if (!body.success) {
+      return reply.status(400).send({ error: body.error.message });
+    }
+    const { caseNames, concurrency, ...replayOptions } = body.data;
+    const { suiteId } = ctx.suiteService.start({ caseNames, concurrency, replayOptions });
+    return reply.status(202).send({ suiteId, status: 'running' });
+  });
 
   app.get(`${base}/suites/runs`, async (req, reply) => {
     const ctx = await resolve(req, reply);
