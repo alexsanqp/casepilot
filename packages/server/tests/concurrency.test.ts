@@ -21,4 +21,16 @@ describe('mapWithConcurrency', () => {
     });
     expect(peak).toBeLessThanOrEqual(2);
   });
+
+  it.each([NaN, 0, -3, 1.5])('runs every item with a non-finite or invalid limit (%s)', async (limit) => {
+    const calls: number[] = [];
+    const out = await mapWithConcurrency([10, 20, 30], limit, async (value, i) => {
+      calls.push(i);
+      return value;
+    });
+    expect(calls.sort()).toEqual([0, 1, 2]);
+    expect(out).toHaveLength(3);
+    expect(out).toEqual([10, 20, 30]);
+    expect(out.some((entry) => entry === undefined)).toBe(false);
+  });
 });
